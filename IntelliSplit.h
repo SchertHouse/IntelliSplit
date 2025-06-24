@@ -16,12 +16,11 @@ enum EParams
 	kNumParams,
 
 	kOutputChannel1 = 0,
-	kOutputChannel2,
-	kButton1,
-	kButton2,
-	kKnob1,
-	kKnob2,
-	kNumParams
+	kOutputChannel2 = 0,
+	kButton1 = 0,
+	kButton2 = 0,
+	kKnob1 = 0,
+	kKnob2 = 0
 };
 
 enum EControlTags
@@ -48,7 +47,9 @@ private:
 protected:
 	bool ProcessingSplit(int channel);
 	void IntelliSplit::Evolve(int note, bool onOff);
-	uint8_t Smooth(uint8_t b, byte newVal, double p) {
+
+	using Func = uint8_t(*)(uint8_t, byte, double);
+	static uint8_t Smooth(uint8_t b, byte newVal, double p) {
 		return b * (1 - p) + newVal * p;
 
 	}

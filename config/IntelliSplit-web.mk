@@ -1,8 +1,8 @@
 # IPLUG2_ROOT should point to the top level IPLUG2 folder from the project folder
 # By default, that is three directories up from /Examples/IntelliSplit/config
-IPLUG2_ROOT = ..\..\..\iPlug2\iPlug2
+IPLUG2_ROOT = ../../iPlug2
 
-include ..\..\..\iPlug2\iPlug2/common-web.mk
+include ../../iPlug2/common-web.mk
 
 SRC += $(PROJECT_ROOT)/IntelliSplit.cpp
 
