@@ -5,16 +5,18 @@
 IntelliSplit::IntelliSplit(const InstanceInfo& info)
 	: Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
-	GetParam(kParamPSmooth)->InitDouble("Gain", 100., 0., 100.0, 0.01, "%");
+	GetParam(kChannel)->InitInt("Canale SX", 1, 1, 16, "ch");
+
+	GetParam(kParamPSmooth)->InitDouble("Knob 1", 0.0, 0.0, 1.0, 0.01);
+	GetParam(kKnob2)->InitDouble("Knob 2", 0.0, 0.0, 1.0, 0.01);
 
 	GetParam(kOutputChannel1)->InitInt("Out Channel 1", 1, 1, 16); // MIDI channels 1-16
 	GetParam(kOutputChannel2)->InitInt("Out Channel 2", 2, 1, 16);
 
-	GetParam(kButton1)->InitBool("Button 1", false);
+	GetParam(kButton1)->InitInt("Button 1", 0, 0, 2, "");
 	GetParam(kButton2)->InitBool("Button 2", false);
 
-	GetParam(kKnob1)->InitDouble("Knob 1", 0.0, 0.0, 1.0, 0.01);
-	GetParam(kKnob2)->InitDouble("Knob 2", 0.0, 0.0, 1.0, 0.01);
+
 
 
 #if IPLUG_DSP
@@ -28,28 +30,30 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 
 	mLayoutFunc = [&](IGraphics* pGraphics) {
 
-		auto actionFunc = [&](IControl* pCaller) {
-			static bool onoff = false;
-			onoff = !onoff;
-			IMidiMsg msg;
-			constexpr int pitches[3] = { 60, 65, 67 };
-
-			for (int i = 0; i < 3; i++)
-			{
-				if (onoff)
-					msg.MakeNoteOnMsg(pitches[i], 60, 0);
-				else
-					msg.MakeNoteOffMsg(pitches[i], 0);
-
-				SendMidiMsgFromUI(msg);
-			}
-
-			SplashClickActionFunc(pCaller);
-			};
-
 		pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
 		pGraphics->AttachPanelBackground(COLOR_GRAY);
-		pGraphics->AttachControl(new IVButtonControl(pGraphics->GetBounds().GetPadded(-10), actionFunc, "Trigger Chord"));
+
+		const IRECT area = pGraphics->GetBounds().GetCentredInside(100);
+
+		// Esempio: 3 opzioni (Low, Mid, High)
+		pGraphics->AttachControl(new IVRadioButtonControl(
+			area,
+			kButton1,
+			{ "Low", "Mid", "High" }
+		));
+
+		const IRECT bounds = pGraphics->GetBounds().GetCentredInside(50);
+		pGraphics->AttachControl(new IVNumberBoxControl(bounds, kChannel,nullptr,"",DEFAULT_STYLE,true,1,1,16,"%0.0f", false));
+
+		const float knobSize = 60.f;
+
+		auto actionFunc = [&](IControl* pCaller) {
+			
+			};
+
+		pGraphics->AttachControl(new IVKnobControl(IRECT().MakeXYWH(0, 0, knobSize, knobSize), kParamPSmooth));
+		pGraphics->AttachControl(new IVKnobControl(IRECT().MakeXYWH(30, 0, knobSize, knobSize), kKnob1));
+		pGraphics->AttachControl(new IVKnobControl(IRECT().MakeXYWH(90, 0, knobSize, knobSize), kKnob2));
 		};
 #endif
 }

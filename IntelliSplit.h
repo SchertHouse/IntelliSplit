@@ -12,15 +12,15 @@ std::unordered_map<int /*note*/, int /*hand*/> hands;
 
 enum EParams
 {
+	kNumParams = 9,
 	kParamPSmooth = 0,
-	kNumParams,
-
-	kOutputChannel1 = 0,
-	kOutputChannel2 = 0,
-	kButton1 = 0,
-	kButton2 = 0,
-	kKnob1 = 0,
-	kKnob2 = 0
+	kOutputChannel1 = 1,
+	kOutputChannel2 = 2,
+	kButton1 = 3,
+	kButton2 = 4,
+	kKnob1 = 5,
+	kKnob2 = 6,
+	kChannel = 8
 };
 
 enum EControlTags
