@@ -11,6 +11,8 @@ class SmallSet {
     static constexpr size_t Range = static_cast<size_t>(Max - Min + 1);
 
 public:
+    using value_type = T;
+
     void add(T value) {
         size_t idx = index(value);
         if (!presence[idx]) {
@@ -38,6 +40,10 @@ public:
 
     bool contains(T value) const {
         return presence[index(value)];
+    }
+
+    size_t size() const {
+        return elements.size();
     }
 
     void clear() {

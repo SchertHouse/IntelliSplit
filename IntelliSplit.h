@@ -4,7 +4,9 @@
 #include <bitset>
 #include <unordered_set>
 #include <optional>
-#include<SmallSet.h>
+#include <SmallSet.h>
+#include <IBarGraphControl.h>
+
 #define N_KEY 128
 #define N_FINGER 5
 #define N_HAND_RANGE 12
@@ -13,10 +15,10 @@ constexpr float MAXF = 1;
 constexpr float MINF = 0;
 const int kNumPresets = 1;
 std::array<float, N_KEY> keyboard = {};
-SmallSet<std::uint8_t, 0, N_KEY> noteOn;
-SmallSet<std::uint8_t, 0, N_KEY> noteOff;
-std::unordered_set<int> left;
-std::unordered_set<int> right;
+SmallSet<std::uint8_t, 0, N_KEY - 1> noteOn;
+SmallSet<std::uint8_t, 0, N_KEY - 1> noteOff;
+SmallSet<std::uint8_t, 0, N_FINGER - 1> left;
+SmallSet<std::uint8_t, 0, N_FINGER - 1> right;
 
 enum EParams
 {
@@ -43,7 +45,6 @@ class IntelliSplit final : public Plugin
 {
 public:
 	IntelliSplit(const InstanceInfo& info);
-	bool ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard);
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
 public:
@@ -52,11 +53,12 @@ public:
 
 private:
 	int mSampleCount;
+	IBarGraphControl<N_KEY>* barGraphControl;
 	float computeSplit(const std::array<float, N_KEY>& keyboard, bool fromLeft);
 
 protected:
-	bool ProcessingSplit(int msgType, int note);
-	void IntelliSplit::Evolve(int note);
+	bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard);
+	void IntelliSplit::Evolve(int note = -1);
 
 	static float Smooth(float b, float newVal, float p) {
 		return b * (1 - p) + newVal * p;

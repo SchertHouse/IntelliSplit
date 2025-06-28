@@ -1,6 +1,9 @@
 #include "IntelliSplit.h"
 #include "IPlug_include_in_plug_src.h"
 #include "IControls.h"
+#include "Utils.h"
+#include "IBarGraphControl.h"
+#include <iostream>
 
 IntelliSplit::IntelliSplit(const InstanceInfo& info)
 	: Plugin(info, MakeConfig(kNumParams, kNumPresets))
@@ -42,8 +45,7 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 			{ "Low", "Mid", "High" }
 		));
 
-		const IRECT bounds = pGraphics->GetBounds().GetCentredInside(50);
-		pGraphics->AttachControl(new IVNumberBoxControl(bounds, kChannel, nullptr, "", DEFAULT_STYLE, true, 1, 1, 16, "%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(area, kChannel, nullptr, "", DEFAULT_STYLE, true, 1, 1, 16, "%0.0f", false));
 
 		const float knobSize = 60.f;
 
@@ -51,9 +53,13 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 
 			};
 
-		pGraphics->AttachControl(new IVKnobControl(IRECT().MakeXYWH(0, 0, knobSize, knobSize), kParamPSmooth));
-		pGraphics->AttachControl(new IVKnobControl(IRECT().MakeXYWH(30, 0, knobSize, knobSize), kKnob1));
-		pGraphics->AttachControl(new IVKnobControl(IRECT().MakeXYWH(90, 0, knobSize, knobSize), kKnob2));
+		IRECT bounds = pGraphics->GetBounds().GetPadded(-20);
+		barGraphControl = new IBarGraphControl<N_KEY>(bounds, keyboard);
+		pGraphics->AttachControl(barGraphControl);
+
+		//pGraphics->AttachControl(new IVKnobControl(IRECT().MakeXYWH(0, 0, knobSize, knobSize), kParamPSmooth));
+		//pGraphics->AttachControl(new IVKnobControl(IRECT().MakeXYWH(30, 0, knobSize, knobSize), kKnob1));
+		//pGraphics->AttachControl(new IVKnobControl(IRECT().MakeXYWH(90, 0, knobSize, knobSize), kKnob2));
 		};
 #endif
 }
@@ -92,10 +98,10 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 		noteOff.remove(note);
 
 		Evolve(note);
-		const bool handOutR = ProcessingSplit(msgType, note);
+		const bool handOutR = ProcessingSplit(note, keyboard);
 		const int outCh = handOutR ? outCh1 : outCh2;
 
-		(handOutR ? right : left).insert(note);
+		(handOutR ? right : left).add(note);
 
 		outMsg.MakeNoteOnMsg(note, velocity, msg.mOffset, outCh);		
 		SendMidiMsg(outMsg);
@@ -105,8 +111,10 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 	{
 
 		noteOn.remove(note);
+		left.remove(note);
+		right.remove(note);
 
-		outMsg.MakeNoteOffMsg(note, msg.mOffset, left.count(note) ? outCh1 : outCh2);
+		outMsg.MakeNoteOffMsg(note, msg.mOffset, left.contains(note) ? outCh1 : outCh2);
 
 		SendMidiMsg(outMsg);
 		noteOff.add(note);
@@ -118,7 +126,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 		const int note = msg.NoteNumber();
 		const int pressure = msg.PolyAfterTouch();
 
-		outMsg.MakePolyATMsg(note, pressure, msg.mOffset, left.count(note) ? outCh1 : outCh2);
+		outMsg.MakePolyATMsg(note, pressure, msg.mOffset, left.contains(note) ? outCh1 : outCh2);
 		SendMidiMsg(outMsg);
 		break;
 	}
@@ -136,7 +144,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 			SendMidiMsg(outMsg2);
 		}
 		else {
-			outMsg.MakeControlChangeMsg(cc, val, left.count(note) ? outCh1 : outCh2, msg.mOffset);
+			outMsg.MakeControlChangeMsg(cc, val, left.contains(note) ? outCh1 : outCh2, msg.mOffset);
 			SendMidiMsg(outMsg);
 		}
 		break;
@@ -154,7 +162,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 			SendMidiMsg(outMsg2);
 		}
 		else {
-			outMsg.MakePitchWheelMsg(bendVal, left.count(note) ? outCh1 : outCh2, msg.mOffset);
+			outMsg.MakePitchWheelMsg(bendVal, left.contains(note) ? outCh1 : outCh2, msg.mOffset);
 			SendMidiMsg(outMsg);
 		}
 		break;
@@ -223,12 +231,21 @@ bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& key
 	float rSplit = computeSplit(keyboard, false);
 	float splitMid = (lSplit + rSplit) / 2.0f;
 
+	//barGraphControl->SetMarkerPos(splitMid);
+
+	auto result = Utils::intersection(left, right);
+	for (const auto& value : result) {
+		std::cout << "ERRORE: !!!!!!!!" << value << " !!!!!!!!!\n";
+	}
+
+	note < splitMid ? left.add(note) : right.add(note);
+
 	return note < splitMid;
 }
 
 
-void IntelliSplit::Evolve(int note = -1) {
-	const double pSmooth = GetParam(kParamPSmooth)->Value() / 100.;
+void IntelliSplit::Evolve(int note) {
+	const float pSmooth = GetParam(kParamPSmooth)->Value() / 100.;
 	EvolveKeyboard(pSmooth, note);
 }
 #endif
