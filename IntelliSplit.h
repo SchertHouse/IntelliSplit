@@ -2,13 +2,16 @@
 
 #include "IPlug_include_in_plug_hdr.h"
 #include <bitset>
+#include <unordered_set>
+#include <optional>
+#include<SmallSet.h>
 #define N_KEY 128
 #define N_FINGER 5
 
 const int kNumPresets = 1;
-std::unordered_map<int /*channel*/, int /*note*/> channelToNoteMap;
-inline uint8_t keyboard[N_KEY] = { 0 };
-std::unordered_map<int /*note*/, int /*hand*/> hands;
+std::array<float, N_KEY> keyboard = {};
+SmallSet<std::uint8_t, 0, N_KEY> noteOn;
+SmallSet<std::uint8_t, 0, N_KEY> noteOff;
 
 enum EParams
 {
@@ -45,18 +48,25 @@ private:
 	int mSampleCount;
 
 protected:
-	bool ProcessingSplit(int channel);
-	void IntelliSplit::Evolve(int note, bool onOff);
+	bool ProcessingSplit(int msgType, int note);
+	void IntelliSplit::Evolve(int note);
 
-	using Func = uint8_t(*)(uint8_t, byte, double);
-	static uint8_t Smooth(uint8_t b, byte newVal, double p) {
+	static float Smooth(float b, float newVal, float p) {
 		return b * (1 - p) + newVal * p;
-
 	}
-	template<typename Func>
-	void EvolveKeyboard(uint8_t* array, size_t size, Func f, int note, byte newVal, double p) {
-		for (size_t i = 0; i < size; ++i) {
-			array[i] = f(array[i], newVal, p);
+
+	void EvolveKeyboard(float p, int note = -1) {
+
+		if(note != -1)
+			keyboard[note] = std::numeric_limits<float>::max();
+
+		for (auto it = noteOff.values().begin(); it != noteOff.values().end(); ) {
+			if (keyboard[*it] <= 0)
+				it = noteOff.remove(*it);
+			else {		
+				keyboard[*it] = Smooth(keyboard[*it], std::numeric_limits<float>::min(), p);
+				++it;
+			}
 		}
 	}
 #endif

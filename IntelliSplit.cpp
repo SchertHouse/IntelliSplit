@@ -43,12 +43,12 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		));
 
 		const IRECT bounds = pGraphics->GetBounds().GetCentredInside(50);
-		pGraphics->AttachControl(new IVNumberBoxControl(bounds, kChannel,nullptr,"",DEFAULT_STYLE,true,1,1,16,"%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(bounds, kChannel, nullptr, "", DEFAULT_STYLE, true, 1, 1, 16, "%0.0f", false));
 
 		const float knobSize = 60.f;
 
 		auto actionFunc = [&](IControl* pCaller) {
-			
+
 			};
 
 		pGraphics->AttachControl(new IVKnobControl(IRECT().MakeXYWH(0, 0, knobSize, knobSize), kParamPSmooth));
@@ -67,46 +67,46 @@ void IntelliSplit::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 	if (mSampleCount >= samplesPer100ms)
 	{
 		mSampleCount -= samplesPer100ms;
-		
-		for (auto i = 0; i < N_KEY; i++) {
-			Evolve(i, hands.count(i) > 0);
-		}
+		Evolve();
 	}
 }
 
 void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 {
+	const int msgType = msg.StatusMsg();
+	const int note = msg.NoteNumber();
+
+	bool handOutR = ProcessingSplit(msgType, note);
+
+	const int channel = msg.Channel();
+	const int velocity = msg.Velocity();
+
 	const int outCh1 = GetParam(kOutputChannel1)->Int();
 	const int outCh2 = GetParam(kOutputChannel2)->Int();
+	const int outCh = handOutR ? outCh1 : outCh2;
 
-	const int msgType = msg.StatusMsg();
-	const int channel = msg.Channel();
-	const int note = msg.NoteNumber();
-	const int velocity = msg.Velocity();
 	IMidiMsg outMsg;
-
-	const int outCh = ProcessingSplit(channel) ? outCh1 : outCh2;
 
 	switch (msgType)
 	{
 	case IMidiMsg::kNoteOn:
 	{
-		channelToNoteMap[channel] = msg.NoteNumber();
-
-		hands.insert({ note, ProcessingSplit(channel)});
+		noteOn.add(note);
 
 		outMsg.MakeNoteOnMsg(note, velocity, msg.mOffset, outCh);
-
+		Evolve(note);
 		SendMidiMsg(outMsg);
 		break;
 	}
 	case IMidiMsg::kNoteOff:
 	{
 
-		channelToNoteMap.erase(channel);
+		noteOn.remove(note);
+
 		outMsg.MakeNoteOffMsg(note, msg.mOffset, outCh);
 
 		SendMidiMsg(outMsg);
+		noteOff.add(note);
 		break;
 	}
 
@@ -181,15 +181,16 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 	}
 }
 
-bool IntelliSplit::ProcessingSplit(int channel) {
-	// Check if the channel is being processed
-	return channelToNoteMap.find(channel) != channelToNoteMap.end();
+bool IntelliSplit::ProcessingSplit(int msgType, int note) {
+	std::array<int, N_FINGER> left = { 0, 0, 0, 0, 0 };
+	std::array<int, N_FINGER> right = { 0, 0, 0, 0, 0 };
+
+	return true;
 }
 
 
-void IntelliSplit::Evolve(int note, bool onOff) {
-	byte newVal = onOff ? std::numeric_limits<uint8_t>::max() : 0;
+void IntelliSplit::Evolve(int note = -1) {
 	const double pSmooth = GetParam(kParamPSmooth)->Value() / 100.;
-	EvolveKeyboard(keyboard, N_KEY, Smooth, note, newVal, pSmooth);
+	EvolveKeyboard(pSmooth, note);
 }
 #endif
