@@ -7,11 +7,16 @@
 #include<SmallSet.h>
 #define N_KEY 128
 #define N_FINGER 5
+#define N_HAND_RANGE 12
 
+constexpr float MAXF = 1;
+constexpr float MINF = 0;
 const int kNumPresets = 1;
 std::array<float, N_KEY> keyboard = {};
 SmallSet<std::uint8_t, 0, N_KEY> noteOn;
 SmallSet<std::uint8_t, 0, N_KEY> noteOff;
+std::unordered_set<int> left;
+std::unordered_set<int> right;
 
 enum EParams
 {
@@ -38,6 +43,7 @@ class IntelliSplit final : public Plugin
 {
 public:
 	IntelliSplit(const InstanceInfo& info);
+	bool ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard);
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
 public:
@@ -46,6 +52,7 @@ public:
 
 private:
 	int mSampleCount;
+	float computeSplit(const std::array<float, N_KEY>& keyboard, bool fromLeft);
 
 protected:
 	bool ProcessingSplit(int msgType, int note);
@@ -58,13 +65,13 @@ protected:
 	void EvolveKeyboard(float p, int note = -1) {
 
 		if(note != -1)
-			keyboard[note] = std::numeric_limits<float>::max();
+			keyboard[note] = MAXF;
 
 		for (auto it = noteOff.values().begin(); it != noteOff.values().end(); ) {
 			if (keyboard[*it] <= 0)
 				it = noteOff.remove(*it);
 			else {		
-				keyboard[*it] = Smooth(keyboard[*it], std::numeric_limits<float>::min(), p);
+				keyboard[*it] = Smooth(keyboard[*it], MINF, p);
 				++it;
 			}
 		}

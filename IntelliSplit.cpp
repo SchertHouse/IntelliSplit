@@ -76,14 +76,11 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 	const int msgType = msg.StatusMsg();
 	const int note = msg.NoteNumber();
 
-	bool handOutR = ProcessingSplit(msgType, note);
-
 	const int channel = msg.Channel();
 	const int velocity = msg.Velocity();
 
 	const int outCh1 = GetParam(kOutputChannel1)->Int();
 	const int outCh2 = GetParam(kOutputChannel2)->Int();
-	const int outCh = handOutR ? outCh1 : outCh2;
 
 	IMidiMsg outMsg;
 
@@ -92,9 +89,15 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 	case IMidiMsg::kNoteOn:
 	{
 		noteOn.add(note);
+		noteOff.remove(note);
 
-		outMsg.MakeNoteOnMsg(note, velocity, msg.mOffset, outCh);
 		Evolve(note);
+		const bool handOutR = ProcessingSplit(msgType, note);
+		const int outCh = handOutR ? outCh1 : outCh2;
+
+		(handOutR ? right : left).insert(note);
+
+		outMsg.MakeNoteOnMsg(note, velocity, msg.mOffset, outCh);		
 		SendMidiMsg(outMsg);
 		break;
 	}
@@ -103,7 +106,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 
 		noteOn.remove(note);
 
-		outMsg.MakeNoteOffMsg(note, msg.mOffset, outCh);
+		outMsg.MakeNoteOffMsg(note, msg.mOffset, left.count(note) ? outCh1 : outCh2);
 
 		SendMidiMsg(outMsg);
 		noteOff.add(note);
@@ -115,7 +118,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 		const int note = msg.NoteNumber();
 		const int pressure = msg.PolyAfterTouch();
 
-		outMsg.MakePolyATMsg(note, pressure, msg.mOffset, outCh);
+		outMsg.MakePolyATMsg(note, pressure, msg.mOffset, left.count(note) ? outCh1 : outCh2);
 		SendMidiMsg(outMsg);
 		break;
 	}
@@ -133,7 +136,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 			SendMidiMsg(outMsg2);
 		}
 		else {
-			outMsg.MakeControlChangeMsg(cc, val, outCh, msg.mOffset);
+			outMsg.MakeControlChangeMsg(cc, val, left.count(note) ? outCh1 : outCh2, msg.mOffset);
 			SendMidiMsg(outMsg);
 		}
 		break;
@@ -151,7 +154,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 			SendMidiMsg(outMsg2);
 		}
 		else {
-			outMsg.MakePitchWheelMsg(bendVal, outCh, msg.mOffset);
+			outMsg.MakePitchWheelMsg(bendVal, left.count(note) ? outCh1 : outCh2, msg.mOffset);
 			SendMidiMsg(outMsg);
 		}
 		break;
@@ -181,11 +184,46 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 	}
 }
 
-bool IntelliSplit::ProcessingSplit(int msgType, int note) {
-	std::array<int, N_FINGER> left = { 0, 0, 0, 0, 0 };
-	std::array<int, N_FINGER> right = { 0, 0, 0, 0, 0 };
+float IntelliSplit::computeSplit(const std::array<float, N_KEY>& keyboard, bool fromLeft) {
+	const float* ptr = fromLeft ? keyboard.data() : keyboard.data() + N_KEY - 1;
+	const float* end = fromLeft ? keyboard.data() + N_KEY : keyboard.data() - 1;
+	const int step = fromLeft ? 1 : -1;
 
-	return true;
+	float weightedSum = 0.0f;
+	float weightTotal = 0.0f;
+	int countOn = 0;
+	int borderKey = fromLeft ? N_KEY : 0;
+
+	for (int i = 0; ptr != end && countOn < N_FINGER; ++i, ptr += step) {
+		const float val = *ptr;
+		const int key = fromLeft ? i : N_KEY - 1 - i;
+
+		if (val == MAXF) {
+			borderKey = key;
+			countOn++;
+			break;
+		}
+
+		weightedSum += val * key;
+		weightTotal += val;
+	}
+
+	if (weightTotal > 0.0f) {
+		float avgPos = weightedSum / weightTotal;
+		float delta = std::abs(avgPos - static_cast<float>(borderKey));
+		return static_cast<float>(borderKey) + static_cast<float>(step) * (N_HAND_RANGE - delta);
+	}
+	else {
+		return static_cast<float>(borderKey) + static_cast<float>(step) * N_HAND_RANGE;
+	}
+}
+
+bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard) {
+	float lSplit = computeSplit(keyboard, true);
+	float rSplit = computeSplit(keyboard, false);
+	float splitMid = (lSplit + rSplit) / 2.0f;
+
+	return note < splitMid;
 }
 
 
