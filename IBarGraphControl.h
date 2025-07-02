@@ -1,20 +1,18 @@
 #pragma once
 
-//#include "IControl.h"        // Base class IControl
-#include "IGraphics.h"       // IRECT, IGraphics, drawing methods
-#include <array>             // std::array
-#include <algorithm>         // std::clamp
+#include <array>
+#include <algorithm>
 
 template <size_t N_BAR>
 class IBarGraphControl : public IControl
 {
 public:
-  IBarGraphControl(const int& bounds, std::array<float, N_BAR>& levels)
+  IBarGraphControl(const iplug::igraphics::IRECT& bounds, std::array<float, N_BAR>& levels)
     : IControl(bounds), mLevels(levels), mMarkerPos(0.0f)
   {
   }
 
-  void Draw(IGraphics& g) override
+  void Draw(iplug::igraphics::IGraphics& g) override
   {
     constexpr int numBars = static_cast<int>(N_BAR);
     if(numBars == 0)
@@ -47,17 +45,22 @@ public:
     g.FillEllipse(COLOR_RED, IRECT(markerX - markerRadius, markerY - markerRadius, markerX + markerRadius, markerY + markerRadius));
   }
 
+  void SetValueFromDelegate(double value, int valIdx = 0) override
+  {
+      SetMarkerPos(value);
+  }
+
   void SetMarkerPos(float pos)
   {
     float clampedPos = std::clamp(pos, 0.0f, static_cast<float>(N_BAR - 1));
-    if (clampedPos != mMarkerPos)
+    if (clampedPos != this->mMarkerPos)
     {
-      mMarkerPos = clampedPos;
+        this->mMarkerPos = clampedPos;
       SetDirty();
     }
   }
 
-  float GetMarkerPos() const { return mMarkerPos; }
+  float GetMarkerPos() const { return this->mMarkerPos; }
 
 private:
   std::array<float, N_BAR>& mLevels;

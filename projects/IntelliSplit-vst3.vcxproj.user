@@ -16,8 +16,8 @@
     <LocalDebuggerCommandArguments>$(VST3_32_COMMAND_ARGS)</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LocalDebuggerCommand>$(VST3_64_HOST_PATH)</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>$(VST3_64_COMMAND_ARGS)</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommand>C:\Program Files\Topten Software\Cantabile 4.0\Cantabile.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>C:\Users\dmortellaro\Desktop\debug.cantabileSong</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
