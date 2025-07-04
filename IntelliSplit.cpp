@@ -13,7 +13,7 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		noteOff.add(i);
 	}
 
-	GetParam(kParamPSmooth)->InitDouble("Smooth", 0.5, 0.0, 1.0, 0.01);
+	GetParam(kParamPSmooth)->InitDouble("Smooth", 1.0, 0.0, 1.0, 0.01);
 
 	GetParam(kOutputChannelSx)->InitInt("Out Channel 1", 1, 1, 16, "ch");
 	GetParam(kOutputChannelDx)->InitInt("Out Channel 2", 2, 1, 16, "ch");
@@ -100,6 +100,8 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 
 		barGraphControl = new IBarGraphControl<N_KEY>(bounds.GetPadded(-20).GetFromBottom(100), keyboard);
 		pGraphics->AttachControl(barGraphControl, kBarGraphControl);
+
+		splitBody = new Body(60);
 		};
 #endif
 }
@@ -260,17 +262,23 @@ float IntelliSplit::computeSplit(const std::array<float, N_KEY>& keyboard, bool 
 }
 
 bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard) {
-	float lSplit = computeSplit(keyboard, true);
-	float rSplit = computeSplit(keyboard, false);
-	float splitMidNew = (lSplit + rSplit) / 2.0f;
+	lSplit = std::round(computeSplit(keyboard, true));
+	rSplit = std::round(computeSplit(keyboard, false));
+	float splitMid  = std::round(splitBody->getPosition());
 
-	const float pSmooth = GetParam(kParamPSmooth)->Value();
-	splitMid = lSplit > rSplit ? rSplit : lSplit;
-	//splitMid = Smooth(splitMid, splitMidNew, pSmooth);
+	if (note >= splitMid && rSplit <= splitMid ) {
+		lSplit = rSplit;
+		splitBody->setPosition(rSplit);
+	}
+
+	if (note <= splitMid && lSplit >= splitMid) {
+		rSplit = lSplit;
+		splitBody->setPosition(lSplit);
+	}
+	
+	float splitMidN = note > splitMid ? lSplit : rSplit;
 
 	note < splitMid ? left.push_back(note) : right.push_back(note);
-
-	SendControlValueFromDelegate(kBarGraphControl, splitMid);
 
 	return note < splitMid;
 }
@@ -280,6 +288,8 @@ void IntelliSplit::Evolve(int note) {
 	std::lock_guard<std::mutex> lock(mMutex);
 	const float pSmooth = GetParam(kParamPSmooth)->Value();
 	EvolveKeyboard(pSmooth, note);
+	float position = splitBody->updateElasticPosition(lSplit, rSplit, pSmooth*10, UPDATE_FREQ/100.0f);
+	SendControlValueFromDelegate(kBarGraphControl, position);
 }
 
 void IntelliSplit::OnUIOpen()
@@ -298,7 +308,7 @@ void IntelliSplit::OnUIOpen()
 						barGraphControl->SetDirty();
 				}
 
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				std::this_thread::sleep_for(std::chrono::milliseconds(UPDATE_FREQ));
 			}
 			});
 	}

@@ -8,10 +8,13 @@
 #include <IBarGraphControl.h>
 #include <thread>
 #include <mutex>
+#include <Body.h>
 
 #define N_KEY 128
 #define N_FINGER 5
 #define N_HAND_RANGE 12
+#define N_HAND_RANGE 12
+#define UPDATE_FREQ (1000 / PLUG_FPS)
 
 constexpr float MAXF = 1;
 constexpr float MINF = 0;
@@ -58,7 +61,8 @@ private:
 	SmallSet<std::uint8_t, 0, N_KEY> noteOff;
 	std::vector<uint8_t> left;
 	std::vector<uint8_t> right;
-	float splitMid = 0;
+	Body* splitBody;
+	float lSplit = 0, rSplit = 0;
 
 protected:
 	bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard);
@@ -66,7 +70,8 @@ protected:
 	std::mutex mMutex;
 
 	static float Smooth(float b, float newVal, float p) {
-		return b * (1 - p) + newVal * p;
+		float val =  b * (1 - p) + newVal * p;
+		return val < 0.01 ? 0 : val;
 	}
 
 	void EvolveKeyboard(float p, int note = -1) {
