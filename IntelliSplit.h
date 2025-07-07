@@ -8,13 +8,15 @@
 #include <IBarGraphControl.h>
 #include <thread>
 #include <mutex>
-#include <Body.h>
 
 #define N_KEY 128
 #define N_FINGER 5
 #define N_HAND_RANGE 12
-#define N_HAND_RANGE 12
 #define UPDATE_FREQ (1000 / PLUG_FPS)
+#define DEFAULT_SPLIT (127 / 2)
+#define B_GROUP_AUTO 0.5f
+#define B_GROUP_SX 0.0f
+#define B_GROUP_DX 1.0f
 
 constexpr float MAXF = 1;
 constexpr float MINF = 0;
@@ -22,12 +24,14 @@ const int kNumPresets = 1;
 
 enum EParams
 {
-	kNumParams = 5,
+	kNumParams = 8,
 	kParamPSmooth = 1,
 	kButtonGroup = 2,
 	kOutputChannelSx = 3,
 	kOutputChannelDx = 4,
-	kBarGraphControl = 5
+	kBarGraphControl = 5,
+	kSplit = 6,
+	kTimeReset= 7
 };
 
 enum EControlTags
@@ -61,8 +65,9 @@ private:
 	SmallSet<std::uint8_t, 0, N_KEY> noteOff;
 	std::vector<uint8_t> left;
 	std::vector<uint8_t> right;
-	Body* splitBody;
-	float lSplit = 0, rSplit = 0;
+	float lSplit = 0, rSplit = 0, splitMid = 0;
+	int64_t millis = 0;
+	bool lastPlay = false;
 
 protected:
 	bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard);

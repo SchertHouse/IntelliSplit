@@ -11,16 +11,17 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 	mRunning = false;
 	for (std::uint8_t i = 0; i < N_KEY; ++i) {
 		noteOff.add(i);
-	}
+	} 
 
 	GetParam(kParamPSmooth)->InitDouble("Smooth", 1.0, 0.0, 1.0, 0.01);
+	GetParam(kTimeReset)->InitDouble("Reset", 1000, 0.0, 10000, 1,"ms");
 
-	GetParam(kOutputChannelSx)->InitInt("Out Channel 1", 1, 1, 16, "ch");
-	GetParam(kOutputChannelDx)->InitInt("Out Channel 2", 2, 1, 16, "ch");
+	GetParam(kOutputChannelSx)->InitInt("Out Channel 1", 1, 1, 16);
+	GetParam(kOutputChannelDx)->InitInt("Out Channel 2", 2, 1, 16);
+	GetParam(kSplit)->InitInt("Split Note Number", DEFAULT_SPLIT, 0, N_KEY-1);
 
-	GetParam(kButtonGroup)->InitInt("Channel Mode", 0, 0, 2);
+	GetParam(kButtonGroup)->InitInt("Channel Mode", 0, -1, 1);
 
-	keyboard.fill(1.0f);
 #if IPLUG_DSP
 	SetTailSize(4410000);
 #endif
@@ -40,68 +41,80 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		const float knobSize = 60.0f;
 		const float numberBoxW = 50.0f;
 		const float numberBoxH = 25.0f;
-		const float buttonW = 40.0f;
-		const float buttonH = 40.0f;
+		const float buttonW = numberBoxW;
+		const float buttonH = numberBoxH;
 
 		// Manopola Smooth centrata in alto
-		IRECT knobRect = bounds.GetCentredInside(knobSize, knobSize).GetTranslated(0, -bounds.H() / 2 + knobSize / 2 + padding);
+		IRECT knobRect = bounds.GetCentredInside(knobSize, knobSize).GetTranslated(-knobSize / 2 - padding/2, -bounds.H() / 2 + knobSize / 2 + padding);
+		IRECT knobRect2 = bounds.GetCentredInside(knobSize, knobSize).GetTranslated(knobSize / 2 + padding / 2, -bounds.H() / 2 + knobSize / 2 + padding);
 		pGraphics->AttachControl(new IVKnobControl(knobRect, kParamPSmooth));
+		pGraphics->AttachControl(new IVKnobControl(knobRect2, kTimeReset));
 
 		// IVNumberBoxControl (Output Channel 1 e 2)
 		float centerX = bounds.MW();
 		float topY = knobRect.B + padding;
 
-		IRECT ch1Rect = IRECT::MakeXYWH(centerX - numberBoxW - padding / 2, topY, numberBoxW, numberBoxH);
-		IRECT ch2Rect = IRECT::MakeXYWH(centerX + padding / 2, topY, numberBoxW, numberBoxH);
+		IRECT ch1Rect = IRECT::MakeXYWH(centerX - numberBoxW * 1.5f - padding, topY, numberBoxW, numberBoxH);
+		IRECT splRect = IRECT::MakeXYWH(centerX - numberBoxW * .5f, topY, numberBoxW, numberBoxH);
+		IRECT ch2Rect = IRECT::MakeXYWH(centerX + numberBoxW * .5f + padding, topY, numberBoxW, numberBoxH);
 
 		pGraphics->AttachControl(new IVNumberBoxControl(ch1Rect, kOutputChannelSx, nullptr, "", DEFAULT_STYLE, true, 1, 1, 16, "%0.0f", false));
-		pGraphics->AttachControl(new IVNumberBoxControl(ch2Rect, kOutputChannelDx, nullptr, "", DEFAULT_STYLE, true, 1, 1, 16, "%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(splRect, kSplit, nullptr, "", DEFAULT_STYLE, true, DEFAULT_SPLIT, 0, N_KEY - 1, "%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(ch2Rect, kOutputChannelDx, nullptr, "", DEFAULT_STYLE, true, 2, 1, 16, "%0.0f", false));
+		
 
 		// Bottoni SX, Auto, DX
-		float buttonsY = ch1Rect.B + padding;
+		float buttonsY = splRect.B + padding;
 
-		IRECT sxButtonRect = IRECT::MakeXYWH(ch1Rect.MW() - buttonW / 2, buttonsY, buttonW, buttonH);
-		IRECT dxButtonRect = IRECT::MakeXYWH(ch2Rect.MW() - buttonW / 2, buttonsY, buttonW, buttonH);
-		IRECT autoButtonRect = IRECT::MakeXYWH(centerX - buttonW / 2, buttonsY, buttonW, buttonH);
-
-		auto autoButton = new IVButtonControl(autoButtonRect, nullptr, "Auto");
+		IRECT sxButtonRect = IRECT::MakeXYWH(ch1Rect.L, buttonsY, ch1Rect.W(), ch1Rect.H());
+		IRECT autoButtonRect = IRECT::MakeXYWH(splRect.L, buttonsY, splRect.W(), splRect.H());
+		IRECT dxButtonRect = IRECT::MakeXYWH(ch2Rect.L, buttonsY, ch2Rect.W(), ch2Rect.H());
+		
 		auto dxButton = new IVButtonControl(dxButtonRect, nullptr, "DX");
+		auto autoButton = new IVButtonControl(autoButtonRect, nullptr, "Auto");
 		auto sxButton = new IVButtonControl(sxButtonRect, nullptr, "SX");
 
 		autoButton->SetActionFunction([this, sxButton, dxButton](IControl* pCaller) {
-			GetParam(kButtonGroup)->SetNormalized(0);
+			GetParam(kButtonGroup)->SetNormalized(B_GROUP_AUTO);
+			pCaller->SetValue(1);
 			sxButton->SetValue(0);
 			dxButton->SetValue(0);
 			sxButton->SetDirty(false);
 			dxButton->SetDirty(false);
 			});
 		dxButton->SetActionFunction([this, autoButton, sxButton](IControl* pCaller) {
-			GetParam(kButtonGroup)->SetNormalized(1);
+			GetParam(kButtonGroup)->SetNormalized(B_GROUP_DX);
+			pCaller->SetValue(1);
 			autoButton->SetValue(0);
 			sxButton->SetValue(0);
 			autoButton->SetDirty(false);
 			sxButton->SetDirty(false);
 			});
 		sxButton->SetActionFunction([this, autoButton, dxButton](IControl* pCaller) {
-			GetParam(kButtonGroup)->SetNormalized(0.5);
-			for (std::uint8_t i = 0; i < N_KEY; ++i) {
-				keyboard[i] = 1.0f; // Reset keyboard values
-				noteOff.add(i);
-			}
+			GetParam(kButtonGroup)->SetNormalized(B_GROUP_SX);
+			pCaller->SetValue(1);
 			autoButton->SetValue(0);
 			dxButton->SetValue(0);
 			autoButton->SetDirty(false);
 			dxButton->SetDirty(false);
 			});
 
+		if (GetParam(kButtonGroup)->GetNormalized() == B_GROUP_AUTO) {
+			autoButton->GetActionFunction()(autoButton);
+		}
+		else if (GetParam(kButtonGroup)->GetNormalized() == B_GROUP_SX) {
+			sxButton->GetActionFunction()(sxButton);
+		}
+		else {
+			dxButton->GetActionFunction()(dxButton);
+		}
+
 		pGraphics->AttachControl(sxButton);
 		pGraphics->AttachControl(autoButton);
 		pGraphics->AttachControl(dxButton);
 
-		barGraphControl = new IBarGraphControl<N_KEY>(bounds.GetPadded(-20).GetFromBottom(100), keyboard);
+		barGraphControl = new IBarGraphControl<N_KEY>(IRECT::MakeXYWH(bounds.L, autoButtonRect.B + padding, bounds.W(), bounds.H() - autoButtonRect.B - padding), keyboard);
 		pGraphics->AttachControl(barGraphControl, kBarGraphControl);
-
-		splitBody = new Body(60);
 		};
 #endif
 }
@@ -136,8 +149,6 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 		const bool handOutR = ProcessingSplit(note, keyboard);
 		const int outCh = handOutR ? outCh1 : outCh2;
 
-		(handOutR ? right : left).push_back(note);
-
 		outMsg.MakeNoteOnMsg(note, velocity, msg.mOffset, outCh);
 		SendMidiMsg(outMsg);
 		break;
@@ -148,6 +159,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 		noteOn.remove(note);
 		Utils::remove<uint8_t>(left, note);
 		Utils::remove<uint8_t>(right, note);
+		millis = Utils::GetCurrentTimeMilliseconds() + GetParam(kTimeReset)->Value();
 
 		outMsg.MakeNoteOffMsg(note, msg.mOffset, Utils::contains<uint8_t>(left, note) ? outCh1 : outCh2);
 
@@ -234,53 +246,68 @@ float IntelliSplit::computeSplit(const std::array<float, N_KEY>& keyboard, bool 
 
 	float weightedSum = 0.0f;
 	float weightTotal = 0.0f;
-	int countOn = 0;
 	int borderKey = fromLeft ? N_KEY : 0;
 
-	for (int i = 0; ptr != end && countOn < N_FINGER; ++i, ptr += step) {
+	for (int i = 0; ptr != end; ++i, ptr += step) {
 		const float val = *ptr;
-		const int key = fromLeft ? i : N_KEY - 1 - i;
 
-		if (val == MAXF) {
-			borderKey = key;
-			countOn++;
-			break;
+		if (val != 0) {
+			const int key = fromLeft ? i : N_KEY - 1 - i;
+
+			if (val == MAXF) {
+				borderKey = key;
+				break;
+			}
+
+			weightedSum += val * key;
+			weightTotal += val;
 		}
-
-		weightedSum += val * key;
-		weightTotal += val;
 	}
 
 	if (weightTotal > 0.0f) {
-		float avgPos = weightedSum / weightTotal;
-		float delta = std::abs(avgPos - static_cast<float>(borderKey));
-		return static_cast<float>(borderKey) + static_cast<float>(step) * (N_HAND_RANGE - delta);
+		return borderKey + step * (N_HAND_RANGE - std::abs((weightedSum / weightTotal) - borderKey));
 	}
 	else {
-		return static_cast<float>(borderKey) + static_cast<float>(step) * N_HAND_RANGE;
+		return borderKey + step * N_HAND_RANGE;
 	}
 }
 
 bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard) {
-	lSplit = std::round(computeSplit(keyboard, true));
-	rSplit = std::round(computeSplit(keyboard, false));
-	float splitMid  = std::round(splitBody->getPosition());
+	lSplit = computeSplit(keyboard, true);
+	rSplit = computeSplit(keyboard, false);
+	int splitType = GetParam(kButtonGroup)->Value();
 
-	if (note >= splitMid && rSplit <= splitMid ) {
-		lSplit = rSplit;
-		splitBody->setPosition(rSplit);
+	if (note == splitMid)
+		splitMid -= splitType;
+
+	if (note >= splitMid && rSplit <= splitMid) {
+		splitMid = rSplit;
+	}
+	else if (note <= splitMid && lSplit >= splitMid) {
+		splitMid = lSplit;
+	}
+	else {
+		if(rSplit - lSplit > N_HAND_RANGE)
+			splitMid = lSplit + (rSplit - lSplit) / 2;
+		else if (splitType == 0) {
+			splitMid = lastPlay ? lSplit : rSplit;
+		}
+		else{
+			splitMid = splitType > 0 ? lSplit : rSplit;
+		}
 	}
 
-	if (note <= splitMid && lSplit >= splitMid) {
-		rSplit = lSplit;
-		splitBody->setPosition(lSplit);
+	switch (splitType) {
+	case 1:
+		break;
+	case 2:
+		break;
 	}
-	
-	float splitMidN = note > splitMid ? lSplit : rSplit;
 
 	note < splitMid ? left.push_back(note) : right.push_back(note);
+	SendControlValueFromDelegate(kBarGraphControl, splitMid);
 
-	return note < splitMid;
+	return lastPlay = note < splitMid;
 }
 
 
@@ -288,8 +315,6 @@ void IntelliSplit::Evolve(int note) {
 	std::lock_guard<std::mutex> lock(mMutex);
 	const float pSmooth = GetParam(kParamPSmooth)->Value();
 	EvolveKeyboard(pSmooth, note);
-	float position = splitBody->updateElasticPosition(lSplit, rSplit, pSmooth*10, UPDATE_FREQ/100.0f);
-	SendControlValueFromDelegate(kBarGraphControl, position);
 }
 
 void IntelliSplit::OnUIOpen()
@@ -301,12 +326,15 @@ void IntelliSplit::OnUIOpen()
 		mWorkerThread = std::thread([this]() {
 			while (mRunning)
 			{
-				{
-					Evolve();
+				Evolve();
 
-					if (barGraphControl)
-						barGraphControl->SetDirty();
+				if (noteOn.size() == 0 && millis <= Utils::GetCurrentTimeMilliseconds()) {
+					splitMid = GetParam(kSplit)->Value();
+					SendControlValueFromDelegate(kBarGraphControl, splitMid);
 				}
+
+				if (barGraphControl)
+					barGraphControl->SetDirty();
 
 				std::this_thread::sleep_for(std::chrono::milliseconds(UPDATE_FREQ));
 			}

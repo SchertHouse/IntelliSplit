@@ -39,4 +39,11 @@ public:
     static void remove(std::vector<T>& vec, const T& value) {
         vec.erase(std::remove(vec.begin(), vec.end(), value), vec.end());
     }
+
+    static inline int64_t GetCurrentTimeMilliseconds()
+    {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()
+        ).count();
+    }
 };

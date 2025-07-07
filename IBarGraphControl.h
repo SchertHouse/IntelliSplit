@@ -19,17 +19,19 @@ public:
       return;
 
     float barWidth = mRECT.W() / static_cast<float>(numBars);
-    float maxHeight = mRECT.H() - 20; // spazio per marker sotto
+    float markerheight = 20;
+    float maxHeight = mRECT.H() - markerheight; // spazio per marker sotto
 
     // Disegna barre
     for (int i = 0; i < numBars; ++i)
     {
       float value = std::clamp(mLevels[i], 0.0f, 1.0f);
       float barHeight = value * maxHeight;
+      float d = 0;
       float x = mRECT.L + i * barWidth;
-      float y = mRECT.B - 20 - barHeight;
+      float y = mRECT.B - markerheight - barHeight;
 
-      IRECT barRect = IRECT(x, y, x + barWidth - 2.0f, mRECT.B - 20);
+      IRECT barRect = IRECT(x, y, x + barWidth - d, mRECT.B - markerheight);
 
       g.FillRect(COLOR_GREEN, barRect);
     }
@@ -40,9 +42,18 @@ public:
     float clampedPos = std::clamp(mMarkerPos, 0.0f, static_cast<float>(numBars - 1));
     // Calcola X in base alla posizione float
     float markerX = mRECT.L + clampedPos * barWidth + barWidth / 2.0f;
-    float markerY = mRECT.B - 10.0f;
+    float markerY = mRECT.B - markerheight/2;
 
-    g.FillEllipse(COLOR_RED, IRECT(markerX - markerRadius, markerY - markerRadius, markerX + markerRadius, markerY + markerRadius));
+    float halfBase = markerRadius / 2.0f;
+    float height = std::sqrt(markerRadius * markerRadius - halfBase * halfBase);
+    float x1 = markerX;
+    float y1 = markerY - height;
+    float x2 = markerX - halfBase;
+    float y2 = markerY + height / 2.0f;
+    float x3 = markerX + halfBase;
+    float y3 = markerY + height / 2.0f;
+
+    g.FillTriangle(COLOR_RED, x1, y1, x2, y2, x3, y3);
   }
 
   void SetValueFromDelegate(double value, int valIdx = 0) override
@@ -56,7 +67,7 @@ public:
     if (clampedPos != this->mMarkerPos)
     {
         this->mMarkerPos = clampedPos;
-      SetDirty();
+        SetDirty();
     }
   }
 
