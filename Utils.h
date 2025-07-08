@@ -1,7 +1,10 @@
+#pragma once
+
 #include <vector>
 #include <unordered_set>
 #include <algorithm>
 #include <type_traits>
+#define DECANCY_TH 0.01f
 
 class Utils {
 public:
@@ -45,5 +48,16 @@ public:
         return std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch()
         ).count();
+    }
+
+    static float ComputeSmoothingP(float updateIntervalMs, float totalDecayTimeMs, float threshold = DECANCY_TH) {
+        float iterations = totalDecayTimeMs / updateIntervalMs;
+        float p = 1.0f - std::pow(threshold, 1.0f / iterations);
+        return p;
+    }
+
+    static float Smooth(float b, float newVal, float p) {
+        float val = b * (1 - p) + newVal * p;
+        return val < DECANCY_TH ? 0 : val;
     }
 };

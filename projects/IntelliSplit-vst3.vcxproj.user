@@ -17,7 +17,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerCommand>C:\Program Files\Topten Software\Cantabile 4.0\Cantabile.exe</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>C:\Users\dmortellaro\Desktop\debug.cantabileSong</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>..\..\..\debug.cantabileSong</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

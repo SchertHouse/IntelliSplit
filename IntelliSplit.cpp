@@ -13,8 +13,8 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		noteOff.add(i);
 	} 
 
-	GetParam(kParamPSmooth)->InitDouble("Smooth", 1.0, 0.0, 1.0, 0.01);
-	GetParam(kTimeReset)->InitDouble("Reset", 1000, 0.0, 10000, 1,"ms");
+	GetParam(kParamPSmooth)->InitDouble("Smooth", 250, 0, 5000, 1, "ms");
+	GetParam(kTimeReset)->InitDouble("Reset", 1000, 0.0, 10000, 1, "ms");
 
 	GetParam(kOutputChannelSx)->InitInt("Out Channel 1", 1, 1, 16);
 	GetParam(kOutputChannelDx)->InitInt("Out Channel 2", 2, 1, 16);
@@ -280,20 +280,20 @@ bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& key
 	if (note == splitMid)
 		splitMid -= splitType;
 
-	if (note >= splitMid && rSplit <= splitMid) {
+	if (note > splitMid && rSplit <= splitMid) {
 		splitMid = rSplit;
 	}
-	else if (note <= splitMid && lSplit >= splitMid) {
+	else if (note < splitMid && lSplit >= splitMid) {
 		splitMid = lSplit;
 	}
 	else {
-		if(rSplit - lSplit > N_HAND_RANGE)
+		if(rSplit - lSplit >= 0)
 			splitMid = lSplit + (rSplit - lSplit) / 2;
 		else if (splitType == 0) {
 			splitMid = lastPlay ? lSplit : rSplit;
 		}
 		else{
-			splitMid = splitType > 0 ? lSplit : rSplit;
+			splitMid = splitType < 0 ? lSplit : rSplit;
 		}
 	}
 
@@ -313,7 +313,7 @@ bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& key
 
 void IntelliSplit::Evolve(int note) {
 	std::lock_guard<std::mutex> lock(mMutex);
-	const float pSmooth = GetParam(kParamPSmooth)->Value();
+	const float pSmooth = Utils::ComputeSmoothingP(UPDATE_FREQ, GetParam(kParamPSmooth)->Value());
 	EvolveKeyboard(pSmooth, note);
 }
 

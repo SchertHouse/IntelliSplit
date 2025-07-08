@@ -8,6 +8,7 @@
 #include <IBarGraphControl.h>
 #include <thread>
 #include <mutex>
+#include "Utils.h"
 
 #define N_KEY 128
 #define N_FINGER 5
@@ -74,11 +75,6 @@ protected:
 	void IntelliSplit::Evolve(int note = -1);
 	std::mutex mMutex;
 
-	static float Smooth(float b, float newVal, float p) {
-		float val =  b * (1 - p) + newVal * p;
-		return val < 0.01 ? 0 : val;
-	}
-
 	void EvolveKeyboard(float p, int note = -1) {
 
 		if(note != -1)
@@ -88,7 +84,7 @@ protected:
 			if (keyboard[*it] <= 0)
 				it = noteOff.remove(*it);
 			else {
-				keyboard[*it] = Smooth(keyboard[*it], MINF, p);
+				keyboard[*it] = Utils::Smooth(keyboard[*it], MINF, p);
 				++it;
 			}
 		}
