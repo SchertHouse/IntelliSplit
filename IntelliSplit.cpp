@@ -143,6 +143,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 	case IMidiMsg::kNoteOn:
 	{
 		noteOn.add(note);
+		channelNote[channel] = note;
 		noteOff.remove(note);
 
 		Evolve(note);
@@ -155,16 +156,18 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 	}
 	case IMidiMsg::kNoteOff:
 	{
+		boolean leftHand = left.contains(note);
+		outMsg.MakeNoteOffMsg(note, msg.mOffset, leftHand ? outCh1 : outCh2);
+		SendMidiMsg(outMsg);
 
+		noteOff.add(note);
 		noteOn.remove(note);
-		Utils::remove<uint8_t>(left, note);
-		Utils::remove<uint8_t>(right, note);
 		millis = Utils::GetCurrentTimeMilliseconds() + GetParam(kTimeReset)->Value();
 
-		outMsg.MakeNoteOffMsg(note, msg.mOffset, Utils::contains<uint8_t>(left, note) ? outCh1 : outCh2);
-
-		SendMidiMsg(outMsg);
-		noteOff.add(note);
+		if (leftHand)
+			left.remove_value(note);
+		else
+			right.remove_value(note);
 		break;
 	}
 
@@ -173,7 +176,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 		const int note = msg.NoteNumber();
 		const int pressure = msg.PolyAfterTouch();
 
-		outMsg.MakePolyATMsg(note, pressure, msg.mOffset, Utils::contains<uint8_t>(left, note) ? outCh1 : outCh2);
+		outMsg.MakePolyATMsg(note, pressure, msg.mOffset, left.contains(note) ? outCh1 : outCh2);
 		SendMidiMsg(outMsg);
 		break;
 	}
@@ -191,7 +194,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 			SendMidiMsg(outMsg2);
 		}
 		else {
-			outMsg.MakeControlChangeMsg(cc, val, Utils::contains<uint8_t>(left, note) ? outCh1 : outCh2, msg.mOffset);
+			outMsg.MakeControlChangeMsg(cc, val, left.contains(channelNote[channel]) ? outCh1 : outCh2, msg.mOffset);
 			SendMidiMsg(outMsg);
 		}
 		break;
@@ -209,7 +212,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 			SendMidiMsg(outMsg2);
 		}
 		else {
-			outMsg.MakePitchWheelMsg(bendVal, Utils::contains<uint8_t>(left, note) ? outCh1 : outCh2, msg.mOffset);
+			outMsg.MakePitchWheelMsg(bendVal, left.contains(channelNote[channel]) ? outCh1 : outCh2, msg.mOffset);
 			SendMidiMsg(outMsg);
 		}
 		break;
@@ -265,7 +268,7 @@ float IntelliSplit::computeSplit(const std::array<float, N_KEY>& keyboard, bool 
 	}
 
 	if (weightTotal > 0.0f) {
-		return borderKey + step * (N_HAND_RANGE - std::abs((weightedSum / weightTotal) - borderKey));
+		return borderKey + step * (N_HAND_RANGE - std::abs((weightedSum / weightTotal) - borderKey) * (weightTotal >= 1 ? 1 : weightTotal));
 	}
 	else {
 		return borderKey + step * N_HAND_RANGE;
@@ -295,13 +298,6 @@ bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& key
 		else{
 			splitMid = splitType < 0 ? lSplit : rSplit;
 		}
-	}
-
-	switch (splitType) {
-	case 1:
-		break;
-	case 2:
-		break;
 	}
 
 	note < splitMid ? left.push_back(note) : right.push_back(note);

@@ -9,6 +9,7 @@
 #include <thread>
 #include <mutex>
 #include "Utils.h"
+#include "ThreadSafeVector.h"
 
 #define N_KEY 128
 #define N_FINGER 5
@@ -18,6 +19,7 @@
 #define B_GROUP_AUTO 0.5f
 #define B_GROUP_SX 0.0f
 #define B_GROUP_DX 1.0f
+#define N_CH 16
 
 constexpr float MAXF = 1;
 constexpr float MINF = 0;
@@ -64,8 +66,9 @@ private:
 	std::array<float, N_KEY> keyboard = {};
 	SmallSet<std::uint8_t, 0, N_KEY> noteOn;
 	SmallSet<std::uint8_t, 0, N_KEY> noteOff;
-	std::vector<uint8_t> left;
-	std::vector<uint8_t> right;
+	uint8_t channelNote[N_CH];
+	ThreadSafeVector<uint8_t> left;
+	ThreadSafeVector<uint8_t> right;
 	float lSplit = 0, rSplit = 0, splitMid = 0;
 	int64_t millis = 0;
 	bool lastPlay = false;
@@ -80,14 +83,10 @@ protected:
 		if(note != -1)
 			keyboard[note] = MAXF;
 
-		for (auto it = noteOff.values().begin(); it != noteOff.values().end(); ) {
-			if (keyboard[*it] <= 0)
-				it = noteOff.remove(*it);
-			else {
-				keyboard[*it] = Utils::Smooth(keyboard[*it], MINF, p);
-				++it;
-			}
-		}
+		noteOff.remove_if_modify(
+			[&](std::uint8_t note) { return keyboard[note] <= 0; },
+			[&](std::uint8_t note) { keyboard[note] = Utils::Smooth(keyboard[note], MINF, p); }
+		);
 	}
 #endif
 };

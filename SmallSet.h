@@ -4,6 +4,7 @@
 #include <array>
 #include <type_traits>
 #include <cstddef>
+#include <mutex>
 
 template<typename T, T Min, T Max>
 class SmallSet {
@@ -12,8 +13,10 @@ class SmallSet {
 
 public:
     using value_type = T;
+    std::mutex dataMutex;
 
     void add(T value) {
+        std::lock_guard<std::mutex> lock(dataMutex);
         size_t idx = index(value);
         if (!presence[idx]) {
             presence.set(idx);
@@ -22,7 +25,9 @@ public:
         }
     }
 
-    auto remove(T value) {
+    auto remove(T value, boolean mutex = true) {
+        if(mutex)
+            std::lock_guard<std::mutex> lock(dataMutex);
         size_t idx = index(value);
         if (!presence[idx]) return elements.end();
 
@@ -31,11 +36,19 @@ public:
         size_t pos = positions[idx];
         T last = elements.back();
 
-        elements[pos] = last;
-        positions[index(last)] = pos;
+        if (value != last) {
+            elements[pos] = last;
+            positions[index(last)] = pos;
+        }
 
         elements.pop_back();
-        return elements.begin() + pos;
+
+        if (pos < elements.size()) {
+            return elements.begin() + pos;
+        }
+        else {
+            return elements.end();
+        }
     }
 
     bool contains(T value) const {
@@ -47,12 +60,28 @@ public:
     }
 
     void clear() {
+        std::lock_guard<std::mutex> lock(dataMutex);
         presence.reset();
         elements.clear();
     }
 
     const std::vector<T>& values() const {
         return elements;
+    }
+
+    template<typename Predicate, typename ModifyFunc>
+    void remove_if_modify(Predicate pred, ModifyFunc modify) {
+        std::lock_guard<std::mutex> lock(dataMutex);
+        for (size_t i = 0; i < elements.size(); ) {
+            T val = elements[i];
+            if (pred(val)) {
+                remove(val, false);
+            }
+            else {
+                modify(val);
+                ++i;
+            }
+        }
     }
 
     auto begin() { return elements.begin(); }
