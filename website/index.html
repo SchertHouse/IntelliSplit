@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SplitHands VST</title>
+  <style>
+    :root {
+      --bg-final: #f4f4f4;
+      --gray-line: #ccc;
+      --left-color: hsl(210, 100%, 90%);
+      --right-color: hsl(50, 100%, 90%);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: #111;
+    }
+
+    /* Sezione principale tipo chat */
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      padding: 2.5rem 1.25rem;
+      margin: 0 auto;
+            
+    background-image:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0) 30%, var(--bg-final) 50%),
+        linear-gradient(to right,
+        var(--left-color) 0%,
+        var(--left-color) 40%,
+        var(--right-color) 60%,
+        var(--right-color) 100%);
+    }
+
+    .block {
+      background: transparent;
+      background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 0.75rem,
+        var(--gray-line) 0.75rem,
+        var(--gray-line) 0.8125rem
+      );
+      background-size: 100% 0.8125rem;
+      border-radius: 0.625rem;
+      padding: 0.75rem 1rem;
+      max-width: 70%;
+      font-size: 1.1rem;
+      position: relative;
+      line-height: 1.5;
+
+      opacity: 0;
+      transform: translateY(1.875rem);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+
+    .block.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .block.left {
+      align-self: flex-start;
+      text-align: left;
+    }
+
+    .block.right {
+      align-self: flex-end;
+      text-align: right;
+    }
+
+    /* Responsive */
+    @media (max-width: 48rem) {
+      .block {
+        max-width: 85%;
+        padding: 0.75rem 1rem;
+        background-size: 100% 0.8125rem;
+      }
+    }
+
+    /* Sezione video + download */
+    .final-section {
+      background: var(--bg-final);
+      padding: 4rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 2rem;
+    }
+
+    .video {
+      width: 100%;
+      max-width: 40rem;
+      aspect-ratio: 16 / 9;
+      border: none;
+      border-radius: 0.625rem;
+      box-shadow: 0 0.125rem 0.75rem rgba(0, 0, 0, 0.2);
+    }
+
+    .download-btn {
+      display: inline-block;
+      background-color: #007bff;
+      color: white;
+      padding: 0.9375rem 1.875rem;
+      border-radius: 0.5rem;
+      text-decoration: none;
+      font-size: 1.1rem;
+      transition: background-color 0.3s ease;
+    }
+
+    .download-btn:hover,
+    .download-btn:focus {
+      background-color: #0056b3;
+      outline: none;
+    }
+
+    /* Note musicali */
+    .note-symbol {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      vertical-align: middle;
+      line-height: 1;
+      margin: 0 0.1875rem;
+      user-select: none;
+    }
+
+    .note-symbol > .symbol {
+      font-size: 1.3rem;
+      line-height: 1;
+    }
+
+    .note-symbol > .label {
+      font-size: 0.6rem;
+      opacity: 0.7;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+  </style>
+</head>
+<body>
+
+    
+  <!-- Sezione descrizioni tipo chat -->
+  <div class="section" id="chat-section">
+    <h1>IntelliSplit v1.0</h1>
+  </div>
+
+  <!-- Sezione video + download -->
+  <div class="final-section">
+    <iframe
+      class="video"
+      src="https://www.youtube.com/embed/VIDEO_ID"
+      allowfullscreen
+      title="Video dimostrativo SplitHands VST"
+    ></iframe>
+    <a href="link-al-tuoi-file.zip" class="download-btn">Scarica SplitHands VST</a>
+  </div>
+
+  <script>
+    const descriptions = [
+      "Un VST innovativo che distingue automaticamente la mano destra dalla sinistra durante l'esecuzione.",
+      "Associa canali MIDI separati per ciascuna mano, rendendo l'arrangiamento più flessibile.",
+      "Perfetto per live performance e produzione: crea split dinamici in tempo reale.",
+      "Semplice da usare: basta suonare, il plugin fa il resto.",
+      "Ottimizzato per tastiere MIDI a 88 e 61 tasti.",
+      "Espandi la tua creatività: tratta le due mani come strumenti indipendenti."
+    ];
+
+    const noteSymbols = ['𝅝', '𝅗𝅥', '𝅘𝅥', '𝅘𝅥𝅮', '𝅘𝅥𝅯'];
+
+    function replaceNotes(text) {
+      return text.replace(/(DO|RE|MI|FA|SOL|LA|SI)/gi, match => {
+        const upper = match.toUpperCase();
+        const symbol = noteSymbols[Math.floor(Math.random() * noteSymbols.length)];
+        return `
+          <span class="note-symbol">
+            <span class="symbol">${symbol}</span>
+            <span class="label">${upper}</span>
+          </span>
+        `;
+      });
+    }
+
+    const chatSection = document.getElementById('chat-section');
+
+    descriptions.forEach((text, index) => {
+      const block = document.createElement('div');
+      block.className = 'block ' + (index % 2 === 0 ? 'left' : 'right');
+      block.innerHTML = replaceNotes(text);
+      chatSection.appendChild(block);
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.block').forEach(block => {
+      observer.observe(block);
+    });
+  </script>
+
+</body>
+</html>
