@@ -147,8 +147,7 @@
   <!-- Sezione descrizioni tipo chat -->
   <div class="section" id="chat-section">
     <h1>IntelliSplit v1.0</h1>
-    <p id="description" class="pentagram-line">
-      Libera il vero potenziale delle tue mani!
+    <p id="description" class="pentagram-line">Libera il vero potenziale delle tue mani!
 Scopri il VST rivoluzionario che rileva automaticamente la mano destra e la sinistra mentre suoni, assegnando a ciascuna un canale MIDI dedicato.
 Arrangiamenti super flessibili, split dinamici in tempo reale, e una nuova libertà creativa sul palco e in studio!
 Perfetto per live performance e produzione musicale, questo plugin ti permette di trattare le due mani come strumenti indipendenti — senza complicazioni.
@@ -177,11 +176,11 @@ Semplifica il tuo setup. Potenzia la tua creatività. Cambia il tuo modo di suon
     const noteSymbols = ['𝅝', '𝅗𝅥', '𝅘𝅥', '𝅘𝅥𝅮', '𝅘𝅥𝅯'];
 
     function replaceNotes(text) {
-      return text.replace(/(DO|RE|MI|FA|SOL|LA|SI)/gi, match => {
+      return text.replace(/(DO|RE|MI|FA|SOL|LA|SI| )/gi, match => {
         const symbol = noteSymbols[Math.floor(Math.random() * noteSymbols.length)];
         return `<span class="note-symbol">
-            <span class="symbol ${match.toLowerCase()}">${symbol}</span>
-            <span class="label">${match}</span>
+            <span class="symbol ${match.toLowerCase()}">${match===' ' ? '&nbsp;' : symbol}</span>
+            <span class="label">${match===' ' ? '&nbsp;' : match}</span>
           </span>`;
       });
     }
