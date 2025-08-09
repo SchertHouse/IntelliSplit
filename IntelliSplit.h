@@ -72,6 +72,7 @@ private:
 	float lSplit = 0, rSplit = 0, splitMid = 0;
 	int64_t millis = 0;
 	bool lastPlay = false;
+	bool reset = true;
 
 protected:
 	bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard);

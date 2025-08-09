@@ -133,8 +133,8 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 	const int channel = msg.Channel();
 	const int velocity = msg.Velocity();
 
-	const int outCh1 = GetParam(kOutputChannelSx)->Int();
-	const int outCh2 = GetParam(kOutputChannelDx)->Int();
+	const int outCh1 = GetParam(kOutputChannelSx)->Int()-1;
+	const int outCh2 = GetParam(kOutputChannelDx)->Int()-1;
 
 	IMidiMsg outMsg;
 
@@ -289,7 +289,8 @@ bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& key
 	else if (note < splitMid && lSplit >= splitMid) {
 		splitMid = lSplit;
 	}
-	else {
+
+	if(!reset) {
 		if(rSplit - lSplit >= 0)
 			splitMid = lSplit + (rSplit - lSplit) / 2;
 		else if (splitType == 0) {
@@ -299,6 +300,8 @@ bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& key
 			splitMid = splitType < 0 ? lSplit : rSplit;
 		}
 	}
+
+	reset = false;
 
 	note < splitMid ? left.push_back(note) : right.push_back(note);
 	SendControlValueFromDelegate(kBarGraphControl, splitMid);
@@ -327,6 +330,7 @@ void IntelliSplit::OnUIOpen()
 				if (noteOn.size() == 0 && millis <= Utils::GetCurrentTimeMilliseconds()) {
 					splitMid = GetParam(kSplit)->Value();
 					SendControlValueFromDelegate(kBarGraphControl, splitMid);
+					reset = true;
 				}
 
 				if (barGraphControl)
