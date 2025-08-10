@@ -83,6 +83,7 @@ private:
 protected:
 	bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard);
 	void IntelliSplit::Evolve(int note = -1);
+	int IntelliSplit::computeTrans(int note, int param);
 	std::mutex mMutex;
 
 	void EvolveKeyboard(float p, int note = -1) {

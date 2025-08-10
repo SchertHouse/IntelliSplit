@@ -158,10 +158,6 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 {
 	const int msgType = msg.StatusMsg();
 	int note = msg.NoteNumber();
-	note += GetParam(kOutputTrasSx)->Int();
-
-	// Evita di uscire dal range MIDI 0–127
-	if (note > 127 || note < 0) return;
 
 	const int channel = msg.Channel();
 	const int velocity = msg.Velocity();
@@ -182,15 +178,17 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 		Evolve(note);
 		const bool handOutR = ProcessingSplit(note, keyboard);
 		const int outCh = handOutR ? outCh1 : outCh2;
+		const int noteTrans = handOutR ? computeTrans(note, GetParam(kOutputTrasSx)->Int()) : computeTrans(note, GetParam(kOutputTrasDx)->Int());
 
-		outMsg.MakeNoteOnMsg(note, velocity, msg.mOffset, outCh);
+		outMsg.MakeNoteOnMsg(noteTrans, velocity, msg.mOffset, outCh);
 		SendMidiMsg(outMsg);
 		break;
 	}
 	case IMidiMsg::kNoteOff:
 	{
 		boolean leftHand = left.contains(note);
-		outMsg.MakeNoteOffMsg(note, msg.mOffset, leftHand ? outCh1 : outCh2);
+		const int noteTrans = leftHand ? computeTrans(note, GetParam(kOutputTrasSx)->Int()) : computeTrans(note, GetParam(kOutputTrasDx)->Int());
+		outMsg.MakeNoteOffMsg(noteTrans, msg.mOffset, leftHand ? outCh1 : outCh2);
 		SendMidiMsg(outMsg);
 
 		noteOff.add(note);
@@ -378,6 +376,15 @@ void IntelliSplit::OnUIOpen()
 			}
 			});
 	}
+}
+
+int IntelliSplit::computeTrans(int note, int param) {
+	note += param;
+
+	// Evita di uscire dal range MIDI 0–127
+	if (note > 127 || note < 0) return -1;
+
+	return note;
 }
 
 void IntelliSplit::OnUIClose()
