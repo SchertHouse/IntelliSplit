@@ -16,8 +16,15 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 	GetParam(kParamPSmooth)->InitDouble("Smooth", 250, 0, 5000, 1, "ms");
 	GetParam(kTimeReset)->InitDouble("Reset", 1000, 0.0, 10000, 1, "ms");
 
-	GetParam(kOutputChannelSx)->InitInt("Out Channel 1", 1, 1, 16);
-	GetParam(kOutputChannelDx)->InitInt("Out Channel 2", 2, 1, 16);
+	GetParam(kOutputChannelSx)->InitInt("Out Channel 1", 1, 1, N_CH);
+	GetParam(kOutputChannelDx)->InitInt("Out Channel 2", 2, 1, N_CH);
+
+	GetParam(kOutputTrasSx)->InitInt("Trans. Ch 1", 0, -N_KEY, N_KEY);
+	GetParam(kOutputTrasDx)->InitInt("Trans. Ch 1", 0, -N_KEY, N_KEY);
+
+	GetParam(kOutputMin)->InitInt("Min", DEFAULT_MIN, 0, N_KEY-1);
+	GetParam(kOutputMax)->InitInt("Max", DEFAULT_MAX, 0, N_KEY-1);
+
 	GetParam(kSplit)->InitInt("Split Note Number", DEFAULT_SPLIT, 0, N_KEY-1);
 
 	GetParam(kButtonGroup)->InitInt("Channel Mode", 0, -1, 1);
@@ -37,38 +44,59 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		pGraphics->AttachPanelBackground(COLOR_GRAY);
 
 		const IRECT bounds = pGraphics->GetBounds();
-		const float padding = 10.0f;
-		const float knobSize = 60.0f;
-		const float numberBoxW = 50.0f;
-		const float numberBoxH = 25.0f;
-		const float buttonW = numberBoxW;
-		const float buttonH = numberBoxH;
+		const float centerX = bounds.MW();
+		const float ratioW = 3;
+		const float ratioH = 20;
+		const float paddingW = bounds.W() / ((4 * ratioW) + 5);
+		const float paddingH = bounds.H() / ((5 * ratioH) + 6);
+
+		const float columnW = paddingW * ratioW;
+		const float rowH = paddingH * ratioH;
+		const float numberBoxW = paddingW * ratioW;
+		const float numberBoxH = rowH/1.4f;
+		const float knobSize = columnW > rowH ? rowH : columnW;
+		const float buttonW = columnW;
+		const float buttonH = rowH /2.5f;
 
 		// Manopola Smooth centrata in alto
-		IRECT knobRect = bounds.GetCentredInside(knobSize, knobSize).GetTranslated(-knobSize / 2 - padding/2, -bounds.H() / 2 + knobSize / 2 + padding);
-		IRECT knobRect2 = bounds.GetCentredInside(knobSize, knobSize).GetTranslated(knobSize / 2 + padding / 2, -bounds.H() / 2 + knobSize / 2 + padding);
-		pGraphics->AttachControl(new IVKnobControl(knobRect, kParamPSmooth));
-		pGraphics->AttachControl(new IVKnobControl(knobRect2, kTimeReset));
+		
+		IRECT SmoothRect = IRECT::MakeXYWH(centerX - knobSize - paddingW/2, paddingH, knobSize, knobSize);
+		IRECT minRect = SmoothRect.GetCentredInside(numberBoxW, numberBoxH).GetTranslated(- knobSize - paddingW, 0);
+		
+		IRECT resetRect = SmoothRect.GetTranslated(paddingW + knobSize, 0);
+		IRECT maxRect = resetRect.GetCentredInside(numberBoxW, numberBoxH).GetTranslated(paddingW + knobSize, 0);
+
+		pGraphics->AttachControl(new IVKnobControl(SmoothRect, kParamPSmooth));
+		pGraphics->AttachControl(new IVKnobControl(resetRect, kTimeReset));
+		pGraphics->AttachControl(new IVNumberBoxControl(minRect, kOutputMin, nullptr, "Min", DEFAULT_STYLE, true, 1, 1, N_CH, "%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(maxRect, kOutputMax, nullptr, "Max", DEFAULT_STYLE, true, 1, 1, N_CH, "%0.0f", false));
 
 		// IVNumberBoxControl (Output Channel 1 e 2)
-		float centerX = bounds.MW();
-		float topY = knobRect.B + padding;
+		float topY = paddingH*2 + rowH + rowH /2 - numberBoxH/2;
 
-		IRECT ch1Rect = IRECT::MakeXYWH(centerX - numberBoxW * 1.5f - padding, topY, numberBoxW, numberBoxH);
+		IRECT ch1Rect = IRECT::MakeXYWH(centerX - numberBoxW * 1.5f - paddingW, topY, numberBoxW, numberBoxH);
 		IRECT splRect = IRECT::MakeXYWH(centerX - numberBoxW * .5f, topY, numberBoxW, numberBoxH);
-		IRECT ch2Rect = IRECT::MakeXYWH(centerX + numberBoxW * .5f + padding, topY, numberBoxW, numberBoxH);
+		IRECT ch2Rect = IRECT::MakeXYWH(centerX + numberBoxW * .5f + paddingW, topY, numberBoxW, numberBoxH);
 
-		pGraphics->AttachControl(new IVNumberBoxControl(ch1Rect, kOutputChannelSx, nullptr, "", DEFAULT_STYLE, true, 1, 1, 16, "%0.0f", false));
-		pGraphics->AttachControl(new IVNumberBoxControl(splRect, kSplit, nullptr, "", DEFAULT_STYLE, true, DEFAULT_SPLIT, 0, N_KEY - 1, "%0.0f", false));
-		pGraphics->AttachControl(new IVNumberBoxControl(ch2Rect, kOutputChannelDx, nullptr, "", DEFAULT_STYLE, true, 2, 1, 16, "%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(ch1Rect, kOutputChannelSx, nullptr, "Ch1", DEFAULT_STYLE, true, 1, 1, N_CH, "%0.0f", false));		
+		pGraphics->AttachControl(new IVNumberBoxControl(splRect, kSplit, nullptr, "Init.Split", DEFAULT_STYLE, true, DEFAULT_SPLIT, 0, N_KEY - 1, "%0.0f", false));		
+		pGraphics->AttachControl(new IVNumberBoxControl(ch2Rect, kOutputChannelDx, nullptr, "Ch2", DEFAULT_STYLE, true, 2, 1, N_CH, "%0.0f", false));
+		
+
+		//Transponse
+		float transY = paddingH * 3 + rowH * 2 + rowH / 2 - numberBoxH / 2;
+		IRECT Tr1Rect = IRECT::MakeXYWH(ch1Rect.L, transY, numberBoxW, numberBoxH);
+		IRECT Tr2Rect = IRECT::MakeXYWH(ch2Rect.L, transY, numberBoxW, numberBoxH);
+		pGraphics->AttachControl(new IVNumberBoxControl(Tr1Rect, kOutputTrasSx, nullptr, "Trans.Ch1", DEFAULT_STYLE, true, 24, 1, N_KEY, "%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(Tr2Rect, kOutputTrasDx, nullptr, "Trans.Ch2", DEFAULT_STYLE, true, 108, 1, N_KEY, "%0.0f", false));
 		
 
 		// Bottoni SX, Auto, DX
-		float buttonsY = splRect.B + padding;
+		float buttonsY = paddingH * 4 + rowH * 3 + rowH / 2 - buttonH / 2;
 
-		IRECT sxButtonRect = IRECT::MakeXYWH(ch1Rect.L, buttonsY, ch1Rect.W(), ch1Rect.H());
-		IRECT autoButtonRect = IRECT::MakeXYWH(splRect.L, buttonsY, splRect.W(), splRect.H());
-		IRECT dxButtonRect = IRECT::MakeXYWH(ch2Rect.L, buttonsY, ch2Rect.W(), ch2Rect.H());
+		IRECT sxButtonRect = IRECT::MakeXYWH(ch1Rect.L, buttonsY, buttonW, buttonH);
+		IRECT autoButtonRect = IRECT::MakeXYWH(splRect.L, buttonsY, buttonW, buttonH);
+		IRECT dxButtonRect = IRECT::MakeXYWH(ch2Rect.L, buttonsY, buttonW, buttonH);
 		
 		auto dxButton = new IVButtonControl(dxButtonRect, nullptr, "DX");
 		auto autoButton = new IVButtonControl(autoButtonRect, nullptr, "Auto");
@@ -113,7 +141,8 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		pGraphics->AttachControl(autoButton);
 		pGraphics->AttachControl(dxButton);
 
-		barGraphControl = new IBarGraphControl<N_KEY>(IRECT::MakeXYWH(bounds.L, autoButtonRect.B + padding, bounds.W(), bounds.H() - autoButtonRect.B - padding), keyboard);
+		float graphY = dxButtonRect.B + paddingH;
+		barGraphControl = new IBarGraphControl<N_KEY>(IRECT::MakeXYWH(bounds.L, graphY, bounds.W(), bounds.H() - graphY), keyboard);
 		pGraphics->AttachControl(barGraphControl, kBarGraphControl);
 		};
 #endif
@@ -128,7 +157,11 @@ void IntelliSplit::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 {
 	const int msgType = msg.StatusMsg();
-	const int note = msg.NoteNumber();
+	int note = msg.NoteNumber();
+	note += GetParam(kOutputTrasSx)->Int();
+
+	// Evita di uscire dal range MIDI 0–127
+	if (note > 127 || note < 0) return;
 
 	const int channel = msg.Channel();
 	const int velocity = msg.Velocity();
@@ -288,9 +321,7 @@ bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& key
 	}
 	else if (note < splitMid && lSplit >= splitMid) {
 		splitMid = lSplit;
-	}
-
-	if(!reset) {
+	} else if(!reset) {
 		if(rSplit - lSplit >= 0)
 			splitMid = lSplit + (rSplit - lSplit) / 2;
 		else if (splitType == 0) {
@@ -299,6 +330,13 @@ bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& key
 		else{
 			splitMid = splitType < 0 ? lSplit : rSplit;
 		}
+	}
+
+	if (splitMid < GetParam(kOutputMin)->Int()) {
+		splitMid = GetParam(kOutputMin)->Int();
+	}
+	else if (splitMid > GetParam(kOutputMax)->Int()){
+		splitMid = GetParam(kOutputMax)->Int();
 	}
 
 	reset = false;

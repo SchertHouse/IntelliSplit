@@ -20,6 +20,8 @@
 #define B_GROUP_SX 0.0f
 #define B_GROUP_DX 1.0f
 #define N_CH 16
+#define DEFAULT_MIN 24
+#define DEFAULT_MAX 108
 
 constexpr float MAXF = 1;
 constexpr float MINF = 0;
@@ -27,14 +29,18 @@ const int kNumPresets = 1;
 
 enum EParams
 {
-	kNumParams = 8,
+	kNumParams = 12,
 	kParamPSmooth = 1,
 	kButtonGroup = 2,
 	kOutputChannelSx = 3,
 	kOutputChannelDx = 4,
 	kBarGraphControl = 5,
 	kSplit = 6,
-	kTimeReset= 7
+	kTimeReset= 7,
+	kOutputTrasSx = 8,
+	kOutputTrasDx = 9,
+	kOutputMin = 10,
+	kOutputMax = 11
 };
 
 enum EControlTags
