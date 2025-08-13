@@ -13,8 +13,8 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		noteOff.add(i);
 	} 
 
-	GetParam(kParamPSmooth)->InitDouble("Smooth", 250, 0, 5000, 1, "ms");
-	GetParam(kTimeReset)->InitDouble("Reset", 1000, 0.0, 10000, 1, "ms");
+	GetParam(kParamPSmooth)->InitDouble("Smooth", 1000, 0, 5000, 1, "ms");
+	GetParam(kTimeReset)->InitDouble("Reset", 3000, 0.0, 10000, 1, "ms");
 
 	GetParam(kOutputChannelSx)->InitInt("Out Channel 1", INIT_CH_1, 1, N_CH);
 	GetParam(kOutputChannelDx)->InitInt("Out Channel 2", INIT_CH_2, 1, N_CH);
