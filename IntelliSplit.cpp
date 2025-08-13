@@ -16,8 +16,8 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 	GetParam(kParamPSmooth)->InitDouble("Smooth", 250, 0, 5000, 1, "ms");
 	GetParam(kTimeReset)->InitDouble("Reset", 1000, 0.0, 10000, 1, "ms");
 
-	GetParam(kOutputChannelSx)->InitInt("Out Channel 1", 1, 1, N_CH);
-	GetParam(kOutputChannelDx)->InitInt("Out Channel 2", 2, 1, N_CH);
+	GetParam(kOutputChannelSx)->InitInt("Out Channel 1", INIT_CH_1, 1, N_CH);
+	GetParam(kOutputChannelDx)->InitInt("Out Channel 2", INIT_CH_2, 1, N_CH);
 
 	GetParam(kOutputTrasSx)->InitInt("Trans. Ch 1", 0, -N_KEY, N_KEY);
 	GetParam(kOutputTrasDx)->InitInt("Trans. Ch 1", 0, -N_KEY, N_KEY);
@@ -78,17 +78,49 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		IRECT splRect = IRECT::MakeXYWH(centerX - numberBoxW * .5f, topY, numberBoxW, numberBoxH);
 		IRECT ch2Rect = IRECT::MakeXYWH(centerX + numberBoxW * .5f + paddingW, topY, numberBoxW, numberBoxH);
 
-		pGraphics->AttachControl(new IVNumberBoxControl(ch1Rect, kOutputChannelSx, nullptr, "Ch1", DEFAULT_STYLE, true, 1, 1, N_CH, "%0.0f", false));		
+		auto ch1UI = new IVNumberBoxControl(ch1Rect, kOutputChannelSx, nullptr, "Ch1", DEFAULT_STYLE, true, 1, 1, N_CH, "%0.0f", false);
+		auto ch2UI = new IVNumberBoxControl(ch2Rect, kOutputChannelDx, nullptr, "Ch2", DEFAULT_STYLE, true, 2, 1, N_CH, "%0.0f", false);
+		pGraphics->AttachControl(ch1UI);
 		pGraphics->AttachControl(new IVNumberBoxControl(splRect, kSplit, nullptr, "Init.Split", DEFAULT_STYLE, true, DEFAULT_SPLIT, 0, N_KEY - 1, "%0.0f", false));		
-		pGraphics->AttachControl(new IVNumberBoxControl(ch2Rect, kOutputChannelDx, nullptr, "Ch2", DEFAULT_STYLE, true, 2, 1, N_CH, "%0.0f", false));
-		
+		pGraphics->AttachControl(ch2UI);	
+
+		ch1UI->SetActionFunction([this](IControl* pCaller) {
+			int channel = GetParam(kOutputChannelSx)->Int() - 1;
+			IMidiMsg allNotesOffMsg;
+			allNotesOffMsg.MakeControlChangeMsg(IMidiMsg::EControlChangeMsg::kAllNotesOff, 0, 0, oldCh1);
+			SendMidiMsgFromUI(allNotesOffMsg);
+			oldCh1 = channel;
+			});
+		ch2UI->SetActionFunction([this](IControl* pCaller) {
+			int channel = GetParam(kOutputChannelDx)->Int() - 1;
+			IMidiMsg allNotesOffMsg;
+			allNotesOffMsg.MakeControlChangeMsg(IMidiMsg::EControlChangeMsg::kAllNotesOff, 0, 0, oldCh2);
+			SendMidiMsgFromUI(allNotesOffMsg);
+			oldCh2 = channel;
+			});
+
 
 		//Transponse
 		float transY = paddingH * 3 + rowH * 2 + rowH / 2 - numberBoxH / 2;
 		IRECT Tr1Rect = IRECT::MakeXYWH(ch1Rect.L, transY, numberBoxW, numberBoxH);
 		IRECT Tr2Rect = IRECT::MakeXYWH(ch2Rect.L, transY, numberBoxW, numberBoxH);
-		pGraphics->AttachControl(new IVNumberBoxControl(Tr1Rect, kOutputTrasSx, nullptr, "Trans.Ch1", DEFAULT_STYLE, true, 24, 1, N_KEY, "%0.0f", false));
-		pGraphics->AttachControl(new IVNumberBoxControl(Tr2Rect, kOutputTrasDx, nullptr, "Trans.Ch2", DEFAULT_STYLE, true, 108, 1, N_KEY, "%0.0f", false));
+		auto trans1 = new IVNumberBoxControl(Tr1Rect, kOutputTrasSx, nullptr, "Trans.Ch1", DEFAULT_STYLE, true, 24, 1, N_KEY, "%0.0f", false);
+		auto trans2 = new IVNumberBoxControl(Tr2Rect, kOutputTrasDx, nullptr, "Trans.Ch2", DEFAULT_STYLE, true, 108, 1, N_KEY, "%0.0f", false);
+		pGraphics->AttachControl(trans1);
+		pGraphics->AttachControl(trans2);
+
+		trans1->SetActionFunction([this](IControl* pCaller) {
+			int channel = GetParam(kOutputChannelSx)->Int() - 1;
+			IMidiMsg allNotesOffMsg;
+			allNotesOffMsg.MakeControlChangeMsg(IMidiMsg::EControlChangeMsg::kAllNotesOff, 0, 0, channel);
+			SendMidiMsgFromUI(allNotesOffMsg);
+			});
+		trans2->SetActionFunction([this](IControl* pCaller) {
+			int channel = GetParam(kOutputChannelDx)->Int() - 1;
+			IMidiMsg allNotesOffMsg;
+			allNotesOffMsg.MakeControlChangeMsg(IMidiMsg::EControlChangeMsg::kAllNotesOff, 0, 0, channel);
+			SendMidiMsgFromUI(allNotesOffMsg);
+			});
 		
 
 		// Bottoni SX, Auto, DX

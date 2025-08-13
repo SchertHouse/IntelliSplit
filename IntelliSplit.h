@@ -22,6 +22,8 @@
 #define N_CH 16
 #define DEFAULT_MIN 24
 #define DEFAULT_MAX 108
+#define INIT_CH_1 1
+#define INIT_CH_2 2
 
 constexpr float MAXF = 1;
 constexpr float MINF = 0;
@@ -79,6 +81,7 @@ private:
 	int64_t millis = 0;
 	bool lastPlay = false;
 	bool reset = true;
+	int oldCh1 = INIT_CH_1, oldCh2 = INIT_CH_2;
 
 protected:
 	bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard);
