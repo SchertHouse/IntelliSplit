@@ -9,18 +9,15 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 	: Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
 	mRunning = false;
-	for (std::uint8_t i = 0; i < N_KEY; ++i) {
-		noteOff.add(i);
-	} 
 
-	GetParam(kParamPSmooth)->InitDouble("Smooth", 1000, 0, 5000, 1, "ms");
-	GetParam(kTimeReset)->InitDouble("Reset", 3000, 0.0, 10000, 1, "ms");
+	GetParam(kParamPSmooth)->InitDouble("Smooth", 1000., 0., 5000., 1., "ms");
+	GetParam(kTimeReset)->InitDouble("Reset", 3000., 0., 10000., 1., "ms");
 
 	GetParam(kOutputChannelSx)->InitInt("Out Channel 1", INIT_CH_1, 1, N_CH);
 	GetParam(kOutputChannelDx)->InitInt("Out Channel 2", INIT_CH_2, 1, N_CH);
 
 	GetParam(kOutputTrasSx)->InitInt("Trans. Ch 1", 0, -N_KEY, N_KEY);
-	GetParam(kOutputTrasDx)->InitInt("Trans. Ch 1", 0, -N_KEY, N_KEY);
+	GetParam(kOutputTrasDx)->InitInt("Trans. Ch 2", 0, -N_KEY, N_KEY);
 
 	GetParam(kOutputMin)->InitInt("Min", DEFAULT_MIN, 0, N_KEY-1);
 	GetParam(kOutputMax)->InitInt("Max", DEFAULT_MAX, 0, N_KEY-1);
@@ -68,8 +65,8 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 
 		pGraphics->AttachControl(new IVKnobControl(SmoothRect, kParamPSmooth));
 		pGraphics->AttachControl(new IVKnobControl(resetRect, kTimeReset));
-		pGraphics->AttachControl(new IVNumberBoxControl(minRect, kOutputMin, nullptr, "Min", DEFAULT_STYLE, true, 1, 1, N_CH, "%0.0f", false));
-		pGraphics->AttachControl(new IVNumberBoxControl(maxRect, kOutputMax, nullptr, "Max", DEFAULT_STYLE, true, 1, 1, N_CH, "%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(minRect, kOutputMin, nullptr, "Min", DEFAULT_STYLE, true, 1, 1, N_KEY - 1, "%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(maxRect, kOutputMax, nullptr, "Max", DEFAULT_STYLE, true, 1, 1, N_KEY - 1, "%0.0f", false));
 
 		// IVNumberBoxControl (Output Channel 1 e 2)
 		float topY = paddingH*2 + rowH + rowH /2 - numberBoxH/2;
@@ -78,49 +75,63 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		IRECT splRect = IRECT::MakeXYWH(centerX - numberBoxW * .5f, topY, numberBoxW, numberBoxH);
 		IRECT ch2Rect = IRECT::MakeXYWH(centerX + numberBoxW * .5f + paddingW, topY, numberBoxW, numberBoxH);
 
-		auto ch1UI = new IVNumberBoxControl(ch1Rect, kOutputChannelSx, nullptr, "Ch1", DEFAULT_STYLE, true, 1, 1, N_CH, "%0.0f", false);
-		auto ch2UI = new IVNumberBoxControl(ch2Rect, kOutputChannelDx, nullptr, "Ch2", DEFAULT_STYLE, true, 2, 1, N_CH, "%0.0f", false);
-		pGraphics->AttachControl(ch1UI);
-		pGraphics->AttachControl(new IVNumberBoxControl(splRect, kSplit, nullptr, "Init.Split", DEFAULT_STYLE, true, DEFAULT_SPLIT, 0, N_KEY - 1, "%0.0f", false));		
-		pGraphics->AttachControl(ch2UI);	
+		oldCh1 = GetParam(kOutputChannelSx)->Int() - 1;
+		oldCh2 = GetParam(kOutputChannelDx)->Int() - 1;
 
-		ch1UI->SetActionFunction([this](IControl* pCaller) {
-			int channel = GetParam(kOutputChannelSx)->Int() - 1;
-			IMidiMsg allNotesOffMsg;
-			allNotesOffMsg.MakeControlChangeMsg(IMidiMsg::EControlChangeMsg::kAllNotesOff, 0, 0, oldCh1);
-			SendMidiMsgFromUI(allNotesOffMsg);
-			oldCh1 = channel;
-			});
-		ch2UI->SetActionFunction([this](IControl* pCaller) {
-			int channel = GetParam(kOutputChannelDx)->Int() - 1;
-			IMidiMsg allNotesOffMsg;
-			allNotesOffMsg.MakeControlChangeMsg(IMidiMsg::EControlChangeMsg::kAllNotesOff, 0, 0, oldCh2);
-			SendMidiMsgFromUI(allNotesOffMsg);
-			oldCh2 = channel;
-			});
+		auto numberBoxHandler = [this](IControl* pCaller)
+			{
+				int paramIdx = pCaller->GetParamIdx();
+				DBGMSG("Handler chiamato da paramIdx=%d\n", paramIdx);
+				IMidiMsg msg;
 
+				if (paramIdx == kOutputChannelSx)
+				{
+					int channel = static_cast<IVNumberBoxControl*>(pCaller)->GetRealValue() - 1;
+					msg.MakeControlChangeMsg(IMidiMsg::kAllNotesOff, 0, oldCh1);
+					SendMidiMsgFromUI(msg);
+					DBGMSG("kAllNotesOff=%d\n", oldCh1);
+					oldCh1 = channel;
+				}
+				else if (paramIdx == kOutputChannelDx)
+				{
+					int channel = static_cast<IVNumberBoxControl*>(pCaller)->GetRealValue() - 1;
+					msg.MakeControlChangeMsg(IMidiMsg::kAllNotesOff, 0, oldCh2);
+					SendMidiMsgFromUI(msg);
+					DBGMSG("kAllNotesOff=%d\n", oldCh2);
+					oldCh2 = channel;
+				}
+				else if (paramIdx == kSplit)
+				{
+					reset = false;
+					DBGMSG("Handler chiamato da reset");
+				}
+				else if (paramIdx == kOutputTrasSx) {
+					int channel = GetParam(kOutputChannelSx)->Int() - 1;
+					msg.MakeControlChangeMsg(IMidiMsg::kAllNotesOff, 0, channel);
+					SendMidiMsgFromUI(msg);
+					DBGMSG("kAllNotesOff=%d\n", channel);
+
+				}
+				else if (paramIdx == kOutputTrasDx) {
+					int channel = GetParam(kOutputChannelDx)->Int() - 1;
+					msg.MakeControlChangeMsg(IMidiMsg::kAllNotesOff, 0, channel);
+					SendMidiMsgFromUI(msg);
+					DBGMSG("kAllNotesOff=%d\n", channel);
+				}
+			};
+		pGraphics->AttachControl(new IVNumberBoxControl(ch1Rect, kOutputChannelSx, numberBoxHandler, "Ch1", DEFAULT_STYLE, true, 1, 1, N_CH, "%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(splRect, kSplit, numberBoxHandler, "Init.Split", DEFAULT_STYLE, true, DEFAULT_SPLIT, 0, N_KEY - 1, "%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(ch2Rect, kOutputChannelDx, numberBoxHandler, "Ch2", DEFAULT_STYLE, true, 2, 1, N_CH, "%0.0f", false));
 
 		//Transponse
 		float transY = paddingH * 3 + rowH * 2 + rowH / 2 - numberBoxH / 2;
 		IRECT Tr1Rect = IRECT::MakeXYWH(ch1Rect.L, transY, numberBoxW, numberBoxH);
 		IRECT Tr2Rect = IRECT::MakeXYWH(ch2Rect.L, transY, numberBoxW, numberBoxH);
-		auto trans1 = new IVNumberBoxControl(Tr1Rect, kOutputTrasSx, nullptr, "Trans.Ch1", DEFAULT_STYLE, true, 24, 1, N_KEY, "%0.0f", false);
-		auto trans2 = new IVNumberBoxControl(Tr2Rect, kOutputTrasDx, nullptr, "Trans.Ch2", DEFAULT_STYLE, true, 108, 1, N_KEY, "%0.0f", false);
+
+		auto trans1 = new IVNumberBoxControl(Tr1Rect, kOutputTrasSx, numberBoxHandler, "Trans.Ch1", DEFAULT_STYLE, true, 24, 1, N_KEY, "%0.0f", false);
+		auto trans2 = new IVNumberBoxControl(Tr2Rect, kOutputTrasDx, numberBoxHandler, "Trans.Ch2", DEFAULT_STYLE, true, 108, 1, N_KEY, "%0.0f", false);
 		pGraphics->AttachControl(trans1);
 		pGraphics->AttachControl(trans2);
-
-		trans1->SetActionFunction([this](IControl* pCaller) {
-			int channel = GetParam(kOutputChannelSx)->Int() - 1;
-			IMidiMsg allNotesOffMsg;
-			allNotesOffMsg.MakeControlChangeMsg(IMidiMsg::EControlChangeMsg::kAllNotesOff, 0, 0, channel);
-			SendMidiMsgFromUI(allNotesOffMsg);
-			});
-		trans2->SetActionFunction([this](IControl* pCaller) {
-			int channel = GetParam(kOutputChannelDx)->Int() - 1;
-			IMidiMsg allNotesOffMsg;
-			allNotesOffMsg.MakeControlChangeMsg(IMidiMsg::EControlChangeMsg::kAllNotesOff, 0, 0, channel);
-			SendMidiMsgFromUI(allNotesOffMsg);
-			});
 		
 
 		// Bottoni SX, Auto, DX
@@ -176,6 +187,15 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		float graphY = dxButtonRect.B + paddingH;
 		barGraphControl = new IBarGraphControl<N_KEY>(IRECT::MakeXYWH(bounds.L, graphY, bounds.W(), bounds.H() - graphY), keyboard);
 		pGraphics->AttachControl(barGraphControl, kBarGraphControl);
+
+		pGraphics->ForAllControlsFunc([this](IControl* pControl) {
+			int idx = pControl->GetParamIdx();
+			if (idx >= 0)
+			{
+				pControl->SetValueFromDelegate(GetParam(idx)->GetNormalized());
+			}
+			});
+
 		};
 #endif
 }
@@ -248,6 +268,12 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 	{
 		IMidiMsg::EControlChangeMsg cc = msg.ControlChangeIdx();
 		const double val = msg.ControlChange(cc);
+
+		if (cc == IMidiMsg::EControlChangeMsg::kAllNotesOff) {
+			outMsg.MakeControlChangeMsg(cc, val, channel, msg.mOffset);
+			SendMidiMsg(outMsg);
+			break;
+		}
 
 		if (channel == 0) {
 			outMsg.MakeControlChangeMsg(cc, val, outCh1, msg.mOffset);
@@ -331,7 +357,7 @@ float IntelliSplit::computeSplit(const std::array<float, N_KEY>& keyboard, bool 
 	}
 
 	if (weightTotal > 0.0f) {
-		return borderKey + step * (N_HAND_RANGE - std::abs((weightedSum / weightTotal) - borderKey) * (weightTotal >= 1 ? 1 : weightTotal));
+		return borderKey + step * (N_HAND_RANGE - std::abs((weightedSum / weightTotal) - borderKey));
 	}
 	else {
 		return borderKey + step * N_HAND_RANGE;
@@ -342,9 +368,6 @@ bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& key
 	lSplit = computeSplit(keyboard, true);
 	rSplit = computeSplit(keyboard, false);
 	int splitType = GetParam(kButtonGroup)->Value();
-
-	if (note == splitMid)
-		splitMid -= splitType;
 
 	if (note > splitMid && rSplit <= splitMid) {
 		splitMid = rSplit;
@@ -395,7 +418,7 @@ void IntelliSplit::OnUIOpen()
 			{
 				Evolve();
 
-				if (noteOn.size() == 0 && millis <= Utils::GetCurrentTimeMilliseconds()) {
+				if (!reset && noteOn.size() == 0 && millis <= Utils::GetCurrentTimeMilliseconds()) {
 					splitMid = GetParam(kSplit)->Value();
 					SendControlValueFromDelegate(kBarGraphControl, splitMid);
 					reset = true;

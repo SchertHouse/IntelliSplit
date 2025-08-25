@@ -31,7 +31,6 @@ const int kNumPresets = 1;
 
 enum EParams
 {
-	kNumParams = 12,
 	kParamPSmooth = 1,
 	kButtonGroup = 2,
 	kOutputChannelSx = 3,
@@ -42,7 +41,8 @@ enum EParams
 	kOutputTrasSx = 8,
 	kOutputTrasDx = 9,
 	kOutputMin = 10,
-	kOutputMax = 11
+	kOutputMax = 11,
+	kNumParams
 };
 
 enum EControlTags
@@ -80,7 +80,7 @@ private:
 	float lSplit = 0, rSplit = 0, splitMid = 0;
 	int64_t millis = 0;
 	bool lastPlay = false;
-	bool reset = true;
+	bool reset = false;
 	int oldCh1 = INIT_CH_1, oldCh2 = INIT_CH_2;
 
 protected:
