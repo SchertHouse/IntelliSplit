@@ -257,7 +257,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 			maxL = left.max().value();
 		}
 
-		if (minR != -1 && maxL != -1 && note < minR && note > maxL && ((minR - note <= FADETH) && (note - maxL <= FADETH))) {
+		if (minR != -1 && maxL != -1 && note < minR && note > maxL && ((minR - note <= FADETH) || (note - maxL <= FADETH))) {
 			const int noteTransA = computeTrans(note, GetParam(kOutputTrasSx)->Int());
 			const int noteTransB = computeTrans(note, GetParam(kOutputTrasDx)->Int());
 

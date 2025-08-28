@@ -24,7 +24,7 @@
 #define DEFAULT_MAX 108
 #define INIT_CH_1 1
 #define INIT_CH_2 2
-#define FADETH 2
+#define FADETH 3
 
 constexpr float MAXF = 1;
 constexpr float MINF = 0;
