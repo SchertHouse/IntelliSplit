@@ -249,35 +249,36 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 
 		Evolve(note);
 		const bool handOutR = ProcessingSplit(msg, keyboard);
-		
-		const int outCh = handOutR ? outCh1 : outCh2;
+		int minR = -1;
+		int maxL = -1;
 
 		if (left.size() > 0 && right.size() > 0) {
-			int minR = right.min().value();
-			int maxL = left.max().value();
+			minR = right.min().value();
+			maxL = left.max().value();
+		}
 
-			if (note < minR && note > maxL && ((minR - note < FADETH) || (note - maxL < FADETH))) {
-				const int noteTransA = computeTrans(note, GetParam(kOutputTrasSx)->Int());
-				const int noteTransB = computeTrans(note, GetParam(kOutputTrasDx)->Int());
+		if (minR != -1 && maxL != -1 && note < minR && note > maxL && ((minR - note < FADETH) || (note - maxL < FADETH))) {
+			const int noteTransA = computeTrans(note, GetParam(kOutputTrasSx)->Int());
+			const int noteTransB = computeTrans(note, GetParam(kOutputTrasDx)->Int());
 
-				if (!left.contains(note))
-					left.push_back(note);
+			if (!left.contains(note))
+				left.push_back(note);
 
-				if (!right.contains(note))
-					right.push_back(note);
+			if (!right.contains(note))
+				right.push_back(note);
 
-				outMsg.MakeNoteOnMsg(noteTransA, velocity / 1.5, msg.mOffset, outCh1);
-				SendMidiMsg(outMsg);
+			outMsg.MakeNoteOnMsg(noteTransA, velocity / 1.5, msg.mOffset, outCh1);
+			SendMidiMsg(outMsg);
 
-				outMsg.MakeNoteOnMsg(noteTransB, velocity / 1.5, msg.mOffset, outCh2);
-				SendMidiMsg(outMsg);
-			}
-			else {
-				const int noteTrans = handOutR ? computeTrans(note, GetParam(kOutputTrasSx)->Int()) : computeTrans(note, GetParam(kOutputTrasDx)->Int());
-				outMsg.MakeNoteOnMsg(noteTrans, velocity, msg.mOffset, outCh);
-				handOutR ? left.push_back(note) : right.push_back(note);
-				SendMidiMsg(outMsg);
-			}
+			outMsg.MakeNoteOnMsg(noteTransB, velocity / 1.5, msg.mOffset, outCh2);
+			SendMidiMsg(outMsg);
+		}
+		else {
+			const int noteTrans = handOutR ? computeTrans(note, GetParam(kOutputTrasSx)->Int()) : computeTrans(note, GetParam(kOutputTrasDx)->Int());
+			const int outCh = handOutR ? outCh1 : outCh2; 
+			outMsg.MakeNoteOnMsg(noteTrans, velocity, msg.mOffset, outCh);
+			handOutR ? left.push_back(note) : right.push_back(note);
+			SendMidiMsg(outMsg);
 		}
 		break;
 	}
