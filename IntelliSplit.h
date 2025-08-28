@@ -24,6 +24,7 @@
 #define DEFAULT_MAX 108
 #define INIT_CH_1 1
 #define INIT_CH_2 2
+#define FADETH 6
 
 constexpr float MAXF = 1;
 constexpr float MINF = 0;
@@ -42,6 +43,7 @@ enum EParams
 	kOutputTrasDx = 9,
 	kOutputMin = 10,
 	kOutputMax = 11,
+	kParamRange = 12,
 	kNumParams
 };
 
@@ -78,13 +80,16 @@ private:
 	ThreadSafeVector<uint8_t> left;
 	ThreadSafeVector<uint8_t> right;
 	float lSplit = 0, rSplit = 0, splitMid = 0;
-	int64_t millis = 0;
-	bool lastPlay = false;
+	int64_t delayTime = 0;
+	bool lastLeftPlay = false;
 	bool reset = false;
 	int oldCh1 = INIT_CH_1, oldCh2 = INIT_CH_2;
+	int64_t mCurrentSample = 0;
+	int64_t mNextEvolveSample = 0;
+	bool fromUI = false;
 
 protected:
-	bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard);
+	bool IntelliSplit::ProcessingSplit(const IMidiMsg& msg, const std::array<float, N_KEY>& keyboard);
 	void IntelliSplit::Evolve(int note = -1);
 	int IntelliSplit::computeTrans(int note, int param);
 	std::mutex mMutex;

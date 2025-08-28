@@ -2,6 +2,8 @@
 #include <vector>
 #include <mutex>
 #include <algorithm>
+#include <optional>
+#include <stdexcept>
 
 template<typename T>
 class ThreadSafeVector {
@@ -40,6 +42,21 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         return vec_.size();
     }
+
+    // Restituisce il minimo, oppure std::nullopt se vuoto
+    std::optional<T> min() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (vec_.empty()) return std::nullopt;
+        return *std::min_element(vec_.begin(), vec_.end());
+    }
+
+    // Restituisce il massimo, oppure std::nullopt se vuoto
+    std::optional<T> max() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (vec_.empty()) return std::nullopt;
+        return *std::max_element(vec_.begin(), vec_.end());
+    }
+
 private:
     std::vector<T> vec_;
     mutable std::mutex mutex_;

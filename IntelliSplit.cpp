@@ -10,7 +10,7 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 {
 	mRunning = false;
 
-	GetParam(kParamPSmooth)->InitDouble("Smooth", 1000., 0., 5000., 1., "ms");
+	GetParam(kParamPSmooth)->InitDouble("Smooth", 500., 0., 5000., 1., "ms");
 	GetParam(kTimeReset)->InitDouble("Reset", 3000., 0., 10000., 1., "ms");
 
 	GetParam(kOutputChannelSx)->InitInt("Out Channel 1", INIT_CH_1, 1, N_CH);
@@ -25,6 +25,8 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 	GetParam(kSplit)->InitInt("Split Note Number", DEFAULT_SPLIT, 0, N_KEY-1);
 
 	GetParam(kButtonGroup)->InitInt("Channel Mode", 0, -1, 1);
+
+	GetParam(kParamRange)->InitDouble("Range", N_HAND_RANGE, 0., 24., 1., "");
 
 #if IPLUG_DSP
 	SetTailSize(4410000);
@@ -60,11 +62,11 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		IRECT SmoothRect = IRECT::MakeXYWH(centerX - knobSize - paddingW/2, paddingH, knobSize, knobSize);
 		IRECT minRect = SmoothRect.GetCentredInside(numberBoxW, numberBoxH).GetTranslated(- knobSize - paddingW, 0);
 		
-		IRECT resetRect = SmoothRect.GetTranslated(paddingW + knobSize, 0);
-		IRECT maxRect = resetRect.GetCentredInside(numberBoxW, numberBoxH).GetTranslated(paddingW + knobSize, 0);
+		IRECT rangeRect = SmoothRect.GetTranslated(paddingW + knobSize, 0);
+		IRECT maxRect = rangeRect.GetCentredInside(numberBoxW, numberBoxH).GetTranslated(paddingW + knobSize, 0);
 
 		pGraphics->AttachControl(new IVKnobControl(SmoothRect, kParamPSmooth));
-		pGraphics->AttachControl(new IVKnobControl(resetRect, kTimeReset));
+		pGraphics->AttachControl(new IVKnobControl(rangeRect, kParamRange));
 		pGraphics->AttachControl(new IVNumberBoxControl(minRect, kOutputMin, nullptr, "Min", DEFAULT_STYLE, true, 1, 1, N_KEY - 1, "%0.0f", false));
 		pGraphics->AttachControl(new IVNumberBoxControl(maxRect, kOutputMax, nullptr, "Max", DEFAULT_STYLE, true, 1, 1, N_KEY - 1, "%0.0f", false));
 
@@ -87,6 +89,7 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 				if (paramIdx == kOutputChannelSx)
 				{
 					int channel = static_cast<IVNumberBoxControl*>(pCaller)->GetRealValue() - 1;
+					fromUI = true;
 					msg.MakeControlChangeMsg(IMidiMsg::kAllNotesOff, 0, oldCh1);
 					SendMidiMsgFromUI(msg);
 					DBGMSG("kAllNotesOff=%d\n", oldCh1);
@@ -95,6 +98,7 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 				else if (paramIdx == kOutputChannelDx)
 				{
 					int channel = static_cast<IVNumberBoxControl*>(pCaller)->GetRealValue() - 1;
+					fromUI = true;
 					msg.MakeControlChangeMsg(IMidiMsg::kAllNotesOff, 0, oldCh2);
 					SendMidiMsgFromUI(msg);
 					DBGMSG("kAllNotesOff=%d\n", oldCh2);
@@ -107,6 +111,7 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 				}
 				else if (paramIdx == kOutputTrasSx) {
 					int channel = GetParam(kOutputChannelSx)->Int() - 1;
+					fromUI = true;
 					msg.MakeControlChangeMsg(IMidiMsg::kAllNotesOff, 0, channel);
 					SendMidiMsgFromUI(msg);
 					DBGMSG("kAllNotesOff=%d\n", channel);
@@ -114,6 +119,7 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 				}
 				else if (paramIdx == kOutputTrasDx) {
 					int channel = GetParam(kOutputChannelDx)->Int() - 1;
+					fromUI = true;
 					msg.MakeControlChangeMsg(IMidiMsg::kAllNotesOff, 0, channel);
 					SendMidiMsgFromUI(msg);
 					DBGMSG("kAllNotesOff=%d\n", channel);
@@ -126,12 +132,12 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 		//Transponse
 		float transY = paddingH * 3 + rowH * 2 + rowH / 2 - numberBoxH / 2;
 		IRECT Tr1Rect = IRECT::MakeXYWH(ch1Rect.L, transY, numberBoxW, numberBoxH);
+		IRECT resetRect = IRECT::MakeXYWH(splRect.L, paddingH * 3 + rowH * 2 + rowH / 2 - knobSize / 2, knobSize, knobSize);
 		IRECT Tr2Rect = IRECT::MakeXYWH(ch2Rect.L, transY, numberBoxW, numberBoxH);
 
-		auto trans1 = new IVNumberBoxControl(Tr1Rect, kOutputTrasSx, numberBoxHandler, "Trans.Ch1", DEFAULT_STYLE, true, 24, 1, N_KEY, "%0.0f", false);
-		auto trans2 = new IVNumberBoxControl(Tr2Rect, kOutputTrasDx, numberBoxHandler, "Trans.Ch2", DEFAULT_STYLE, true, 108, 1, N_KEY, "%0.0f", false);
-		pGraphics->AttachControl(trans1);
-		pGraphics->AttachControl(trans2);
+		pGraphics->AttachControl(new IVKnobControl(resetRect, kTimeReset));
+		pGraphics->AttachControl(new IVNumberBoxControl(Tr1Rect, kOutputTrasSx, numberBoxHandler, "Trans.Ch1", DEFAULT_STYLE, true, 24, 1, N_KEY, "%0.0f", false));
+		pGraphics->AttachControl(new IVNumberBoxControl(Tr2Rect, kOutputTrasDx, numberBoxHandler, "Trans.Ch2", DEFAULT_STYLE, true, 108, 1, N_KEY, "%0.0f", false));
 		
 
 		// Bottoni SX, Auto, DX
@@ -203,7 +209,21 @@ IntelliSplit::IntelliSplit(const InstanceInfo& info)
 #if IPLUG_DSP
 void IntelliSplit::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 {
+	int64_t blockEnd = mCurrentSample + nFrames;
 
+	if (mCurrentSample >= mNextEvolveSample)
+	{
+		Evolve();
+		mNextEvolveSample = mCurrentSample + static_cast<int64_t>(GetSampleRate() / PLUG_FPS);
+	}
+
+	mCurrentSample = blockEnd;
+
+	if (!reset && noteOn.size() == 0 && delayTime <= blockEnd) {
+		splitMid = GetParam(kSplit)->Value();
+		SendControlValueFromDelegate(kBarGraphControl, splitMid);
+		reset = true;
+	}
 }
 
 void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
@@ -228,29 +248,59 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 		noteOff.remove(note);
 
 		Evolve(note);
-		const bool handOutR = ProcessingSplit(note, keyboard);
+		const bool handOutR = ProcessingSplit(msg, keyboard);
+		
 		const int outCh = handOutR ? outCh1 : outCh2;
-		const int noteTrans = handOutR ? computeTrans(note, GetParam(kOutputTrasSx)->Int()) : computeTrans(note, GetParam(kOutputTrasDx)->Int());
 
-		outMsg.MakeNoteOnMsg(noteTrans, velocity, msg.mOffset, outCh);
-		SendMidiMsg(outMsg);
+		if (left.size() > 0 && right.size() > 0) {
+			int minR = right.min().value();
+			int maxL = left.max().value();
+
+			if (note < minR && note > maxL && ((minR - note < FADETH) || (note - maxL < FADETH))) {
+				const int noteTransA = computeTrans(note, GetParam(kOutputTrasSx)->Int());
+				const int noteTransB = computeTrans(note, GetParam(kOutputTrasDx)->Int());
+
+				if (!left.contains(note))
+					left.push_back(note);
+
+				if (!right.contains(note))
+					right.push_back(note);
+
+				outMsg.MakeNoteOnMsg(noteTransA, velocity / 1.5, msg.mOffset, outCh1);
+				SendMidiMsg(outMsg);
+
+				outMsg.MakeNoteOnMsg(noteTransB, velocity / 1.5, msg.mOffset, outCh2);
+				SendMidiMsg(outMsg);
+			}
+			else {
+				const int noteTrans = handOutR ? computeTrans(note, GetParam(kOutputTrasSx)->Int()) : computeTrans(note, GetParam(kOutputTrasDx)->Int());
+				outMsg.MakeNoteOnMsg(noteTrans, velocity, msg.mOffset, outCh);
+				handOutR ? left.push_back(note) : right.push_back(note);
+				SendMidiMsg(outMsg);
+			}
+		}
 		break;
 	}
 	case IMidiMsg::kNoteOff:
 	{
-		boolean leftHand = left.contains(note);
-		const int noteTrans = leftHand ? computeTrans(note, GetParam(kOutputTrasSx)->Int()) : computeTrans(note, GetParam(kOutputTrasDx)->Int());
-		outMsg.MakeNoteOffMsg(noteTrans, msg.mOffset, leftHand ? outCh1 : outCh2);
-		SendMidiMsg(outMsg);
+		if (left.contains(note)) {
+			const int noteTransA = computeTrans(note, GetParam(kOutputTrasSx)->Int());
+			outMsg.MakeNoteOffMsg(noteTransA, msg.mOffset, outCh1);
+			SendMidiMsg(outMsg);
+		}
+
+		if (right.contains(note)) {
+			const int noteTransB = computeTrans(note, GetParam(kOutputTrasDx)->Int());
+			outMsg.MakeNoteOffMsg(noteTransB, msg.mOffset, outCh2);
+			SendMidiMsg(outMsg);
+		}
 
 		noteOff.add(note);
 		noteOn.remove(note);
-		millis = Utils::GetCurrentTimeMilliseconds() + GetParam(kTimeReset)->Value();
-
-		if (leftHand)
-			left.remove_value(note);
-		else
-			right.remove_value(note);
+		left.remove_value(note);
+		right.remove_value(note);
+		
+		delayTime = mCurrentSample + static_cast<int>((GetParam(kTimeReset)->Value() / 1000.0) * GetSampleRate());
 		break;
 	}
 
@@ -258,9 +308,18 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 	{
 		const int note = msg.NoteNumber();
 		const int pressure = msg.PolyAfterTouch();
+		const boolean leftHand = left.contains(note);
 
-		outMsg.MakePolyATMsg(note, pressure, msg.mOffset, left.contains(note) ? outCh1 : outCh2);
-		SendMidiMsg(outMsg);
+		if (leftHand && right.contains(note)) {
+			outMsg.MakePolyATMsg(note, pressure, msg.mOffset, outCh1);
+			SendMidiMsg(outMsg);
+			outMsg.MakePolyATMsg(note, pressure, msg.mOffset, outCh2);
+			SendMidiMsg(outMsg);
+		}
+		else {
+			outMsg.MakePolyATMsg(note, pressure, msg.mOffset, left.contains(note) ? outCh1 : outCh2);
+			SendMidiMsg(outMsg);
+		}
 		break;
 	}
 
@@ -269,23 +328,18 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 		IMidiMsg::EControlChangeMsg cc = msg.ControlChangeIdx();
 		const double val = msg.ControlChange(cc);
 
-		if (cc == IMidiMsg::EControlChangeMsg::kAllNotesOff) {
+		if (fromUI && cc == IMidiMsg::EControlChangeMsg::kAllNotesOff) {
 			outMsg.MakeControlChangeMsg(cc, val, channel, msg.mOffset);
 			SendMidiMsg(outMsg);
+			fromUI = false;
 			break;
 		}
 
-		if (channel == 0) {
-			outMsg.MakeControlChangeMsg(cc, val, outCh1, msg.mOffset);
-			IMidiMsg outMsg2;
-			outMsg2.MakeControlChangeMsg(cc, val, outCh2, msg.mOffset);
-			SendMidiMsg(outMsg);
-			SendMidiMsg(outMsg2);
-		}
-		else {
-			outMsg.MakeControlChangeMsg(cc, val, left.contains(channelNote[channel]) ? outCh1 : outCh2, msg.mOffset);
-			SendMidiMsg(outMsg);
-		}
+		outMsg.MakeControlChangeMsg(cc, val, outCh1, msg.mOffset);
+		IMidiMsg outMsg2;
+		outMsg2.MakeControlChangeMsg(cc, val, outCh2, msg.mOffset);
+		SendMidiMsg(outMsg);
+		SendMidiMsg(outMsg2);
 		break;
 	}
 
@@ -326,6 +380,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 		SendMidiMsg(outMsg2);
 		break;
 	}
+
 	default:
 		break;
 	}
@@ -356,29 +411,31 @@ float IntelliSplit::computeSplit(const std::array<float, N_KEY>& keyboard, bool 
 		}
 	}
 
+	int handRange = GetParam(kParamRange)->Value();
+
 	if (weightTotal > 0.0f) {
-		return borderKey + step * (N_HAND_RANGE - std::abs((weightedSum / weightTotal) - borderKey));
+		return borderKey + step * (handRange - std::abs((weightedSum / weightTotal) - borderKey));
 	}
 	else {
-		return borderKey + step * N_HAND_RANGE;
+		return borderKey + step * handRange;
 	}
 }
 
-bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& keyboard) {
+bool IntelliSplit::ProcessingSplit(const IMidiMsg& msg, const std::array<float, N_KEY>& keyboard) {
 	lSplit = computeSplit(keyboard, true);
 	rSplit = computeSplit(keyboard, false);
 	int splitType = GetParam(kButtonGroup)->Value();
+	int note = msg.NoteNumber();
 
-	if (note > splitMid && rSplit <= splitMid) {
+	if (note >= splitMid && rSplit <= splitMid) {
 		splitMid = rSplit;
-	}
-	else if (note < splitMid && lSplit >= splitMid) {
+	} else if (note <= splitMid && lSplit >= splitMid) {
 		splitMid = lSplit;
 	} else if(!reset) {
 		if(rSplit - lSplit >= 0)
 			splitMid = lSplit + (rSplit - lSplit) / 2;
 		else if (splitType == 0) {
-			splitMid = lastPlay ? lSplit : rSplit;
+			splitMid = lastLeftPlay ? lSplit : rSplit;
 		}
 		else{
 			splitMid = splitType < 0 ? lSplit : rSplit;
@@ -393,11 +450,10 @@ bool IntelliSplit::ProcessingSplit(int note, const std::array<float, N_KEY>& key
 	}
 
 	reset = false;
-
-	note < splitMid ? left.push_back(note) : right.push_back(note);
+	bool testleft = note < splitMid;
 	SendControlValueFromDelegate(kBarGraphControl, splitMid);
 
-	return lastPlay = note < splitMid;
+	return lastLeftPlay = testleft;
 }
 
 
@@ -416,14 +472,6 @@ void IntelliSplit::OnUIOpen()
 		mWorkerThread = std::thread([this]() {
 			while (mRunning)
 			{
-				Evolve();
-
-				if (!reset && noteOn.size() == 0 && millis <= Utils::GetCurrentTimeMilliseconds()) {
-					splitMid = GetParam(kSplit)->Value();
-					SendControlValueFromDelegate(kBarGraphControl, splitMid);
-					reset = true;
-				}
-
 				if (barGraphControl)
 					barGraphControl->SetDirty();
 
