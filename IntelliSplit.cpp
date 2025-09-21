@@ -396,13 +396,13 @@ float IntelliSplit::computeSplit(const std::array<float, N_KEY>& keyboard, bool 
 		if (val != 0) {
 			const int key = fromLeft ? i : N_KEY - 1 - i;
 
+			weightedSum += val * key;
+			weightTotal += val;
+
 			if (val == MAXF) {
 				borderKey = key;
 				break;
 			}
-
-			weightedSum += val * key;
-			weightTotal += val;
 		}
 	}
 
@@ -423,25 +423,21 @@ int IntelliSplit::ProcessingSplit(const IMidiMsg& msg, const std::array<float, N
 	int note = msg.NoteNumber();
 	bool doubleNote = false;
 
-	if (note >= splitMid && rSplit <= splitMid) {
+	if (note >= splitMid) {
 		splitMid = rSplit;
 	}
-	else if (note <= splitMid && lSplit >= splitMid) {
+	else if (note <= splitMid) {
 		splitMid = lSplit;
 	}
-	else if (!reset) {
+	
+	if (!reset) {
 		int krange = GetParam(kParamRange)->Value();
 		if (rSplit - lSplit >= 0)
 			splitMid = lSplit + (rSplit - lSplit) / 2;
-		else if (splitType == 0) {
-			splitMid = lastLeftPlay ? lSplit : rSplit;
-		} if (rSplit - lSplit > -krange &&
+		else if (rSplit - lSplit > -krange &&
 			((rightD.size() > 0 && note >= (rightD.max().value() - krange)) && (leftD.size() > 0 && note <= (leftD.min().value() + krange)))) {
 			splitMid = note + 1;
 			doubleNote = true;
-		}
-		else {
-			splitMid = splitType < 0 ? lSplit : rSplit;
 		}
 	}
 
