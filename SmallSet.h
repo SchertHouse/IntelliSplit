@@ -75,6 +75,7 @@ public:
         for (size_t i = 0; i < elements.size(); ) {
             T val = elements[i];
             if (pred(val)) {
+                modify(val);
                 remove(val, false);
             }
             else {

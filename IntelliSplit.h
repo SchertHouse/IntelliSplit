@@ -77,8 +77,8 @@ private:
 	SmallSet<std::uint8_t, 0, N_KEY> noteOn;
 	SmallSet<std::uint8_t, 0, N_KEY> noteOff;
 	uint8_t channelNote[N_CH];
-	ThreadSafeVector<uint8_t> left;
-	ThreadSafeVector<uint8_t> right;
+	ThreadSafeVector<uint8_t> left, leftD;
+	ThreadSafeVector<uint8_t> right, rightD;
 	float lSplit = 0, rSplit = 0, splitMid = 0;
 	int64_t delayTime = 0;
 	bool lastLeftPlay = false;
@@ -89,7 +89,7 @@ private:
 	bool fromUI = false;
 
 protected:
-	bool IntelliSplit::ProcessingSplit(const IMidiMsg& msg, const std::array<float, N_KEY>& keyboard);
+	int IntelliSplit::ProcessingSplit(const IMidiMsg& msg, const std::array<float, N_KEY>& keyboard, bool noteEvent = true);
 	void IntelliSplit::Evolve(int note = -1);
 	int IntelliSplit::computeTrans(int note, int param);
 	std::mutex mMutex;
@@ -101,7 +101,8 @@ protected:
 
 		noteOff.remove_if_modify(
 			[&](std::uint8_t note) { return keyboard[note] <= 0; },
-			[&](std::uint8_t note) { keyboard[note] = Utils::Smooth(keyboard[note], MINF, p); }
+			[&](std::uint8_t note) { keyboard[note] = Utils::Smooth(keyboard[note], MINF, p); if (keyboard[note] < 0.5f) { leftD.remove_value(note); rightD.remove_value(note); }
+	}
 		);
 	}
 #endif
