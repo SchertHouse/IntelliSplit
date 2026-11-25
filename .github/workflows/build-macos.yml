@@ -36,6 +36,12 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      - name: List Xcode schemes
+        run: |
+          xcodebuild \
+            -list \
+            -project projects/IntelliSplit-macOS.xcodeproj
+
       - name: Build VST3 Universal Binary
         run: |
           xcodebuild \
@@ -43,7 +49,6 @@ jobs:
             -target VST3 \
             -configuration Release \
             -sdk macosx \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             SYMROOT="$GITHUB_WORKSPACE/build-mac" \
             ARCHS="arm64 x86_64" \
             ONLY_ACTIVE_ARCH=NO \
@@ -66,6 +71,7 @@ jobs:
           fi
 
           mkdir -p dist
+
           ditto "$PLUGIN_PATH" dist/IntelliSplit.vst3
 
           ditto -c -k --sequesterRsrc --keepParent \
