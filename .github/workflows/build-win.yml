@@ -1,0 +1,156 @@
+
+name: Build Windows
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build VST3 Windows x64
+    runs-on: windows-2022
+
+    steps:
+      # --------------------------------------------------
+      # Checkout repositories
+      # --------------------------------------------------
+
+      - name: Checkout IntelliSplit
+        uses: actions/checkout@v4
+        with:
+          path: IntelliSplit
+
+      - name: Checkout iPlug2
+        uses: actions/checkout@v4
+        with:
+          repository: iPlug2/iPlug2
+          path: iPlug2
+
+      # --------------------------------------------------
+      # Setup development environment
+      # --------------------------------------------------
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # --------------------------------------------------
+      # Download iPlug2 dependencies
+      # --------------------------------------------------
+
+      - name: Download iPlug2 SDKs
+        shell: bash
+        run: |
+          cd "$GITHUB_WORKSPACE/iPlug2/Dependencies/IPlug"
+
+          chmod +x download-iplug-sdks.sh
+          ./download-iplug-sdks.sh
+
+      # --------------------------------------------------
+      # Verify VST3 SDK
+      # --------------------------------------------------
+
+      - name: Verify VST3 SDK
+        shell: pwsh
+        run: |
+          $SDK_PATH = "$env:GITHUB_WORKSPACE/iPlug2/Dependencies/IPlug/VST3_SDK"
+
+          $FILES = @(
+            "public.sdk/source/vst/vstrepresentation.cpp",
+            "public.sdk/source/vst/vstsinglecomponenteffect.cpp",
+            "public.sdk/source/vst/vstpresetfile.cpp",
+            "public.sdk/source/vst/vstparameters.cpp"
+          )
+
+          foreach ($FILE in $FILES) {
+            $PATH = Join-Path $SDK_PATH $FILE
+
+            if (!(Test-Path $PATH)) {
+              throw "Missing VST3 SDK file: $PATH"
+            }
+
+            Write-Host "Found: $FILE"
+          }
+
+      # --------------------------------------------------
+      # Locate Visual Studio project
+      # --------------------------------------------------
+
+      - name: Locate VST3 project
+        id: locate
+        shell: pwsh
+        run: |
+          $PROJECT = Get-ChildItem `
+            "$env:GITHUB_WORKSPACE/IntelliSplit" `
+            -Recurse `
+            -Filter "*vst3*.vcxproj" |
+            Select-Object -First 1
+
+          if (!$PROJECT) {
+            throw "VST3 Visual Studio project not found"
+          }
+
+          Write-Host "Found project: $($PROJECT.FullName)"
+
+          "project=$($PROJECT.FullName)" >> $env:GITHUB_OUTPUT
+
+      # --------------------------------------------------
+      # Build VST3
+      # --------------------------------------------------
+
+      - name: Build VST3 Release x64
+        shell: pwsh
+        run: |
+          msbuild "${{ steps.locate.outputs.project }}" `
+            /m `
+            /t:Build `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:WindowsTargetPlatformVersion=10.0 `
+            /verbosity:minimal
+
+      # --------------------------------------------------
+      # Collect artifacts
+      # --------------------------------------------------
+
+      - name: Collect VST3 artifacts
+        shell: pwsh
+        run: |
+          $ROOT = "$env:GITHUB_WORKSPACE/IntelliSplit"
+          $OUTPUT = "$env:GITHUB_WORKSPACE/artifacts"
+
+          New-Item -ItemType Directory -Force -Path $OUTPUT | Out-Null
+
+          $PLUGINS = Get-ChildItem $ROOT -Recurse -Directory -Filter "*.vst3"
+
+          if (!$PLUGINS) {
+            throw "No VST3 plugin generated"
+          }
+
+          foreach ($PLUGIN in $PLUGINS) {
+            Write-Host "Collecting: $($PLUGIN.FullName)"
+
+            Copy-Item `
+              -Path $PLUGIN.FullName `
+              -Destination $OUTPUT `
+              -Recurse `
+              -Force
+          }
+
+          Get-ChildItem $OUTPUT -Recurse
+
+      - name: Upload Windows VST3
+        uses: actions/upload-artifact@v4
+        with:
+          name: IntelliSplit-Windows-VST3-x64
+          path: artifacts/
+          if-no-files-found: error
