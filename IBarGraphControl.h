@@ -4,7 +4,7 @@
 #include <algorithm>
 
 template <size_t N_BAR>
-class IBarGraphControl : public IControl
+class IBarGraphControl : public iplug::igraphics::IControl
 {
 public:
   IBarGraphControl(const iplug::igraphics::IRECT& bounds, std::array<float, N_BAR>& levels)
