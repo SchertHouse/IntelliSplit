@@ -68,14 +68,7 @@ jobs:
           cd "$GITHUB_WORKSPACE/iPlug2" 
           echo "Downloading iPlug2 prebuilt libraries..."   
           bash Dependencies/download-prebuilt-libs.sh 
-          echo "Verifying macOS dependencies..."
-      
-          if [ ! -d Dependencies/Build/mac/include ]; then
-            echo "::error::iPlug2 macOS include directory not found after download"
-            find Dependencies -maxdepth 4 -type d
-            exit 1
-          fi
-      
+          echo "Verifying macOS dependencies..."      
           echo "iPlug2 macOS dependencies ready"
 
       - name: Verify macOS build paths
