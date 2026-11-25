@@ -5,6 +5,8 @@
 
 #include "IControl.h"
 
+using namespace iplug::igraphics;
+
 template <size_t N_BAR>
 class IBarGraphControl : public iplug::igraphics::IControl
 {
