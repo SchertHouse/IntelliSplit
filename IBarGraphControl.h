@@ -8,7 +8,7 @@
 using namespace iplug::igraphics;
 
 template <size_t N_BAR>
-class IBarGraphControl : public iplug::igraphics::IControl
+class IBarGraphControl : public IControl
 {
 public:
   IBarGraphControl(const iplug::igraphics::IRECT& bounds, std::array<float, N_BAR>& levels)
