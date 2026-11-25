@@ -89,33 +89,6 @@ jobs:
             -sdk macosx \
             -showBuildSettings | grep -E \
             '(^| )(SRCROOT|PROJECT_DIR|CONFIGURATION_BUILD_DIR|HEADER_SEARCH_PATHS|USER_HEADER_SEARCH_PATHS|GCC_PREFIX_HEADER) ='
-
-      - name: Diagnose iPlug2 dependencies
-        shell: bash
-        run: |
-          echo "Workspace: $GITHUB_WORKSPACE"
-          echo "Current directory: $(pwd)"
-      
-          for path in \
-            iPlug2/IPlug/IPlugOBJCPrefix.pch \
-            iPlug2/Dependencies/Build/mac/include \
-            iPlug2/Dependencies/IPlug/VST3_SDK
-          do
-            if [ -e "$path" ]; then
-              echo "[OK] $path"
-            else
-              echo "[MISSING] $path"
-            fi
-          done
-      
-          echo "iPlug2 contents:"
-          ls -la iPlug2/
-      
-          echo "Dependencies contents:"
-          ls -la iPlug2/Dependencies/
-      
-          echo "Submodules:"
-          git submodule status
             
       - name: Build VST3 Universal
         working-directory: IntelliSplit
