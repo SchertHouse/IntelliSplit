@@ -8,15 +8,16 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build VST3 Windows x64
     runs-on: windows-2022
 
     steps:
-      # --------------------------------------------------
       # Checkout repositories
-      # --------------------------------------------------
 
       - name: Checkout IntelliSplit
         uses: actions/checkout@v4
@@ -27,11 +28,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: iPlug2/iPlug2
+          ref: 61c042e936d832b6c7d93c5dd8b7e09cf2518bb9
           path: iPlug2
 
-      # --------------------------------------------------
+      # Verify framework revision
+
+      - name: Verify iPlug2 revision
+        shell: pwsh
+        run: |
+          $EXPECTED = "61c042e936d832b6c7d93c5dd8b7e09cf2518bb9"
+          $ACTUAL = git -C iPlug2 rev-parse HEAD
+
+          Write-Host "Expected: $EXPECTED"
+          Write-Host "Actual:   $ACTUAL"
+
+          if ($ACTUAL -ne $EXPECTED) {
+            throw "Unexpected iPlug2 revision"
+          }
+
       # Setup development environment
-      # --------------------------------------------------
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -43,21 +58,16 @@ jobs:
         with:
           arch: x64
 
-      # --------------------------------------------------
       # Download iPlug2 dependencies
-      # --------------------------------------------------
 
       - name: Download iPlug2 SDKs
         shell: bash
+        working-directory: iPlug2/Dependencies/IPlug
         run: |
-          cd "$GITHUB_WORKSPACE/iPlug2/Dependencies/IPlug"
-
           chmod +x download-iplug-sdks.sh
           ./download-iplug-sdks.sh
 
-      # --------------------------------------------------
       # Verify VST3 SDK
-      # --------------------------------------------------
 
       - name: Verify VST3 SDK
         shell: pwsh
@@ -81,9 +91,7 @@ jobs:
             Write-Host "Found: $FILE"
           }
 
-      # --------------------------------------------------
       # Locate Visual Studio project
-      # --------------------------------------------------
 
       - name: Locate VST3 project
         id: locate
@@ -103,9 +111,7 @@ jobs:
 
           "project=$($PROJECT.FullName)" >> $env:GITHUB_OUTPUT
 
-      # --------------------------------------------------
       # Build VST3
-      # --------------------------------------------------
 
       - name: Build VST3 Release x64
         shell: pwsh
@@ -118,9 +124,7 @@ jobs:
             /p:WindowsTargetPlatformVersion=10.0 `
             /verbosity:minimal
 
-      # --------------------------------------------------
       # Collect artifacts
-      # --------------------------------------------------
 
       - name: Collect VST3 artifacts
         shell: pwsh
