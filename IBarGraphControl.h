@@ -3,6 +3,8 @@
 #include <array>
 #include <algorithm>
 
+#include "IControl.h"
+
 template <size_t N_BAR>
 class IBarGraphControl : public iplug::igraphics::IControl
 {
