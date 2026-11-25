@@ -419,7 +419,6 @@ float IntelliSplit::computeSplit(const std::array<float, N_KEY>& keyboard, bool 
 int IntelliSplit::ProcessingSplit(const IMidiMsg& msg, const std::array<float, N_KEY>& keyboard, bool noteEvent) {
 	lSplit = computeSplit(keyboard, true);
 	rSplit = computeSplit(keyboard, false);
-	int splitType = GetParam(kButtonGroup)->Value();
 	int note = msg.NoteNumber();
 	bool doubleNote = false;
 
