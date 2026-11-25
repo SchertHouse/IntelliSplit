@@ -1,0 +1,81 @@
+
+name: Build IntelliSplit for macOS
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos:
+    name: Build macOS VST3
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout IntelliSplit
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Checkout iPlug2 framework
+        run: |
+          git clone --depth 1 --recurse-submodules \
+            https://github.com/iPlug2/iPlug2.git \
+            "$GITHUB_WORKSPACE/../iPlug2"
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build VST3 Universal Binary
+        run: |
+          xcodebuild \
+            -project projects/IntelliSplit-macOS.xcodeproj \
+            -target VST3 \
+            -configuration Release \
+            -sdk macosx \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            SYMROOT="$GITHUB_WORKSPACE/build-mac" \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Package VST3
+        shell: bash
+        run: |
+          set -e
+
+          PLUGIN_PATH=$(find "$GITHUB_WORKSPACE/build-mac" \
+            -type d -name "IntelliSplit.vst3" -print -quit)
+
+          if [ -z "$PLUGIN_PATH" ]; then
+            echo "ERROR: IntelliSplit.vst3 not found"
+            find "$GITHUB_WORKSPACE/build-mac" -maxdepth 6 -print
+            exit 1
+          fi
+
+          mkdir -p dist
+          ditto "$PLUGIN_PATH" dist/IntelliSplit.vst3
+
+          ditto -c -k --sequesterRsrc --keepParent \
+            dist/IntelliSplit.vst3 \
+            dist/IntelliSplit-macOS-VST3.zip
+
+      - name: Upload macOS plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: IntelliSplit-macOS-VST3
+          path: dist/IntelliSplit-macOS-VST3.zip
+          if-no-files-found: error
+          retention-days: 30
