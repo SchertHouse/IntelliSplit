@@ -25,7 +25,7 @@ public:
         }
     }
 
-    auto remove(T value, boolean mutex = true) {
+    auto remove(T value, bool mutex = true) {
         if(mutex)
             std::lock_guard<std::mutex> lock(dataMutex);
         size_t idx = index(value);
