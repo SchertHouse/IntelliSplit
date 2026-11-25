@@ -61,6 +61,25 @@ jobs:
 
           echo "VST3 SDK correctly installed"
 
+      - name: Verify macOS build paths
+        working-directory: IntelliSplit
+        run: |
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          echo "PWD=$(pwd)"
+          echo "SRCROOT=$(pwd)"
+          echo "iPlug2=$(realpath ../iPlug2)"
+          echo "iPlug2 exists:"
+          test -f ../iPlug2/IPlug/IPlug_include_in_plug_hdr.h
+      
+          echo "Project settings:"
+          xcodebuild \
+            -project projects/IntelliSplit-macOS.xcodeproj \
+            -target VST3 \
+            -configuration Release \
+            -sdk macosx \
+            -showBuildSettings | grep -E \
+            '(^| )(SRCROOT|PROJECT_DIR|CONFIGURATION_BUILD_DIR|HEADER_SEARCH_PATHS|USER_HEADER_SEARCH_PATHS|GCC_PREFIX_HEADER) ='
+            
       - name: Build VST3 Universal
         working-directory: IntelliSplit
         run: |
