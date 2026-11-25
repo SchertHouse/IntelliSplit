@@ -89,9 +89,9 @@ private:
 	bool fromUI = false;
 
 protected:
-	int IntelliSplit::ProcessingSplit(const IMidiMsg& msg, const std::array<float, N_KEY>& keyboard, bool noteEvent = true);
-	void IntelliSplit::Evolve(int note = -1);
-	int IntelliSplit::computeTrans(int note, int param);
+	int ProcessingSplit(const IMidiMsg& msg, const std::array<float, N_KEY>& keyboard, bool noteEvent = true);
+	void Evolve(int note = -1);
+	int computeTrans(int note, int param);
 	std::mutex mMutex;
 
 	void EvolveKeyboard(float p, int note = -1) {
