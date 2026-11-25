@@ -112,17 +112,27 @@ jobs:
           "project=$($PROJECT.FullName)" >> $env:GITHUB_OUTPUT
 
       # Build VST3
-
+      
       - name: Build VST3 Release x64
         shell: pwsh
         run: |
+          $SOLUTION_DIR = "$env:GITHUB_WORKSPACE\IntelliSplit\"
+
+          Write-Host "SolutionDir: $SOLUTION_DIR"
+
+          if (!(Test-Path "$SOLUTION_DIR\config\IntelliSplit-win.props")) {
+            throw "IntelliSplit-win.props not found"
+          }
+
           msbuild "${{ steps.locate.outputs.project }}" `
             /m `
             /t:Build `
+            /p:SolutionDir="$SOLUTION_DIR" `
             /p:Configuration=Release `
             /p:Platform=x64 `
             /p:WindowsTargetPlatformVersion=10.0 `
             /verbosity:minimal
+
 
       # Collect artifacts
 
