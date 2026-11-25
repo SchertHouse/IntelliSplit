@@ -79,6 +79,25 @@ jobs:
             -sdk macosx \
             -showBuildSettings | grep -E \
             '(^| )(SRCROOT|PROJECT_DIR|CONFIGURATION_BUILD_DIR|HEADER_SEARCH_PATHS|USER_HEADER_SEARCH_PATHS|GCC_PREFIX_HEADER) ='
+
+      - name: Verify iPlug2 dependencies
+        shell: bash
+        run: |
+          set -e
+      
+          echo "Checking iPlug2 dependencies..."
+      
+          test -f iPlug2/IPlug/IPlugOBJCPrefix.pch
+          test -d iPlug2/Dependencies/Build/mac/include
+          test -d iPlug2/Dependencies/IPlug/VST3_SDK
+      
+          echo "Checking VST3 SDK..."
+          find iPlug2/Dependencies/IPlug/VST3_SDK -maxdepth 2 -type d | head -30
+      
+          echo "Checking macOS libraries..."
+          find iPlug2/Dependencies/Build/mac -maxdepth 3 -type f | head -50
+      
+          echo "Dependencies verification completed"      
             
       - name: Build VST3 Universal
         working-directory: IntelliSplit
