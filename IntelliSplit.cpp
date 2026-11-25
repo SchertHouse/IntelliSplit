@@ -303,7 +303,7 @@ void IntelliSplit::ProcessMidiMsg(const IMidiMsg& msg)
 	{
 		const int note = msg.NoteNumber();
 		const int pressure = msg.PolyAfterTouch();
-		const boolean leftHand = left.contains(note);
+		const bool leftHand = left.contains(note);
 
 		if (leftHand && right.contains(note)) {
 			outMsg.MakePolyATMsg(note, pressure, msg.mOffset, outCh1);
@@ -498,7 +498,7 @@ void IntelliSplit::OnUIOpen()
 int IntelliSplit::computeTrans(int note, int param) {
 	note += param;
 
-	// Evita di uscire dal range MIDI 0–127
+	// Evita di uscire dal range MIDI 0Â–127
 	if (note > 127 || note < 0) return -1;
 
 	return note;
