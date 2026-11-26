@@ -1,0 +1,125 @@
+
+name: Build IntelliSplit macOS AU
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Audio Unit Universal
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout IntelliSplit
+        uses: actions/checkout@v4
+        with:
+          path: IntelliSplit
+
+      - name: Checkout iPlug2
+        uses: actions/checkout@v4
+        with:
+          repository: iPlug2/iPlug2
+          ref: 61c042e936d832b6c7d93c5dd8b7e09cf2518bb9
+          path: iPlug2
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download iPlug2 SDKs
+        shell: bash
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE/iPlug2"
+          bash Dependencies/IPlug/download-iplug-sdks.sh
+
+      - name: Verify Xcode configuration
+        shell: bash
+        run: |
+          set -e
+
+          PROJECT="$GITHUB_WORKSPACE/IntelliSplit/projects/IntelliSplit-macOS.xcodeproj"
+
+          echo "Xcode version:"
+          xcodebuild -version
+
+          echo "Available targets and schemes:"
+          xcodebuild -project "$PROJECT" -list
+
+          echo "Checking AU configuration:"
+          grep -R "AU_API" \
+            "$GITHUB_WORKSPACE/IntelliSplit/config" || true
+
+      - name: Build AU Release Universal
+        shell: bash
+        run: |
+          set -e
+
+          cd "$GITHUB_WORKSPACE/IntelliSplit"
+
+          xcodebuild \
+            -project projects/IntelliSplit-macOS.xcodeproj \
+            -target AU \
+            -configuration Release \
+            -sdk macosx \
+            SYMROOT="$GITHUB_WORKSPACE/build-mac-au" \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Verify AU bundle
+        shell: bash
+        run: |
+          set -e
+
+          AU_PATH=$(find "$GITHUB_WORKSPACE/build-mac-au" \
+            -type d \
+            -name "IntelliSplit.component" \
+            -print -quit)
+
+          if [ -z "$AU_PATH" ]; then
+            echo "ERROR: IntelliSplit.component not found"
+            find "$GITHUB_WORKSPACE/build-mac-au" -maxdepth 5 -print
+            exit 1
+          fi
+
+          echo "AU bundle found: $AU_PATH"
+
+          echo "Checking architectures:"
+          file "$AU_PATH/Contents/MacOS/IntelliSplit"
+
+          echo "Checking bundle:"
+          plutil -lint "$AU_PATH/Contents/Info.plist"
+
+      - name: Package AU
+        shell: bash
+        run: |
+          set -e
+
+          DIST_DIR="$GITHUB_WORKSPACE/dist-au"
+          mkdir -p "$DIST_DIR"
+
+          AU_PATH=$(find "$GITHUB_WORKSPACE/build-mac-au" \
+            -type d \
+            -name "IntelliSplit.component" \
+            -print -quit)
+
+          ditto "$AU_PATH" "$DIST_DIR/IntelliSplit.component"
+
+          cd "$DIST_DIR"
+
+          ditto -c -k --sequesterRsrc --keepParent \
+            IntelliSplit.component \
+            "$GITHUB_WORKSPACE/IntelliSplit-macOS-AU.zip"
+
+      - name: Upload AU Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IntelliSplit-macOS-AU
+          path: IntelliSplit-macOS-AU.zip
+          if-no-files-found: error
+          retention-days: 30
