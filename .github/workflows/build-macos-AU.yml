@@ -28,13 +28,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Download iPlug2 SDKs
-        shell: bash
-        run: |
-          set -e
-          cd "$GITHUB_WORKSPACE/iPlug2"
-          bash Dependencies/IPlug/download-iplug-sdks.sh
-
       - name: Verify Xcode configuration
         shell: bash
         run: |
