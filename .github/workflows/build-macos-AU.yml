@@ -64,25 +64,37 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             build
 
-      
       - name: Package AU
         shell: bash
         run: |
           set -e
       
-          AU_PATH="$GITHUB_WORKSPACE/IntelliSplit/build-mac-au/Release/IntelliSplit.component"
+          BUILD_DIR="$GITHUB_WORKSPACE/IntelliSplit/build-mac-au"
           DIST_DIR="$GITHUB_WORKSPACE/dist-au"
+      
+          AU_PATH=$(find "$BUILD_DIR" \
+            -type d \
+            -name "IntelliSplit.component" \
+            -print -quit)
+      
+          if [ -z "$AU_PATH" ]; then
+            echo "ERROR: IntelliSplit.component not found"
+            find "$BUILD_DIR" -maxdepth 5 -print
+            exit 1
+          fi
+      
+          echo "Packaging: $AU_PATH"
       
           mkdir -p "$DIST_DIR"
       
           ditto "$AU_PATH" "$DIST_DIR/IntelliSplit.component"
       
-          cd "$DIST_DIR"
-      
           ditto -c -k --sequesterRsrc --keepParent \
-            IntelliSplit.component \
+            "$DIST_DIR/IntelliSplit.component" \
             "$GITHUB_WORKSPACE/IntelliSplit-macOS-AU.zip"
-
+      
+          echo "Package created successfully"
+          ls -lh "$GITHUB_WORKSPACE/IntelliSplit-macOS-AU.zip"
 
       - name: Upload AU Artifact
         uses: actions/upload-artifact@v4
