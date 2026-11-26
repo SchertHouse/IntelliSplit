@@ -1,5 +1,5 @@
 
-name: Build IntelliSplit macOS AU
+name: Build macOS AU
 
 on:
   workflow_dispatch:
