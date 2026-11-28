@@ -1,0 +1,22 @@
+
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "IntelliSplit - Cantabile Debug",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "C:\\Program Files\\Topten Software\\Cantabile 4.0\\Cantabile.exe",
+      "args": ["C:\\Users\\domen\\Desktop\\Domenico\\Progetti\\IntelliSplit\\test.cantabileSong"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "symbolSearchPath": "${workspaceFolder}\\build-win\\pdbs",
+      "requireExactSource": true,
+      "logging": {
+        "moduleLoad": true,
+        "engineLogging": false
+      }
+    }
+  ]
+}
